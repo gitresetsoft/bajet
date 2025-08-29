@@ -8,7 +8,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import CreateBudget from "./pages/CreateBudget";
+import CreateViewEditBudget from "./pages/CreateViewEditBudget";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,7 +30,17 @@ const App = () => (
             } />
             <Route path="/create-budget" element={
               <ProtectedRoute>
-                <CreateBudget />
+                <CreateViewEditBudget />
+              </ProtectedRoute>
+            } />
+            <Route path="/budget/:budgetId" element={
+              <ProtectedRoute>
+                <CreateViewEditBudget />
+              </ProtectedRoute>
+            } />
+            <Route path="/budget/:budgetId/:mode" element={
+              <ProtectedRoute>
+                <CreateViewEditBudget />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

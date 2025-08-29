@@ -2,9 +2,23 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import { Calculator, Plus, Eye, Edit, Trash2, LogOut, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+
+interface CommitmentItem {
+  id: string;
+  name: string;
+  amounts: Record<string, number>;
+}
+
+interface CommitmentGroup {
+  id: string;
+  name: string;
+  items: CommitmentItem[];
+  isExpanded?: boolean;
+}
 
 interface Budget {
   id: string;
@@ -12,9 +26,10 @@ interface Budget {
   month: string;
   year: number;
   members: string[];
-  totalCommitments: number;
-  totalSalary: number;
-  balance: number;
+  commitments: CommitmentGroup[];
+  salaries: Record<string, number>;
+  totalCommitments: Record<string, number>;
+  balance: Record<string, number>;
   createdAt: string;
 }
 
@@ -101,66 +116,87 @@ export default function Dashboard() {
               <p className="text-muted-foreground">{budgets.length} budget{budgets.length !== 1 ? 's' : ''} total</p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {budgets.map((budget) => (
-                <Card key={budget.id} className="border-border hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span>{budget.name}</span>
-                      <span className="text-sm font-normal text-muted-foreground">
-                        {budget.month} {budget.year}
-                      </span>
-                    </CardTitle>
-                    <CardDescription>
-                      {budget.members.join(' & ')}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Total Salary:</span>
-                        <span className="font-medium text-success">
-                          ${budget.totalSalary.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Commitments:</span>
-                        <span className="font-medium text-destructive">
-                          ${budget.totalCommitments.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm font-medium pt-2 border-t border-border">
-                        <span>Balance:</span>
-                        <span className={budget.balance >= 0 ? 'text-success' : 'text-destructive'}>
-                          ${budget.balance.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
+            <div className="space-y-6">
+              {Object.entries(
+                budgets.reduce((acc, budget) => {
+                  (acc[budget.year] = acc[budget.year] || []).push(budget)
+                  return acc
+                }, {} as Record<string, typeof budgets>)
+              ).map(([year, yearBudgets], index) => (
+                <Accordion key={year} 
+                type="single" collapsible
+                defaultValue={index === 0 ? year : undefined}
+                >
+                  <AccordionItem value={year}>
+                    <AccordionTrigger className="text-lg font-semibold">
+                      {year}
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-4">
+                        {yearBudgets.map((budget) => (
+                          <Card key={budget.id} className="border-border hover:shadow-lg transition-shadow">
+                            <CardHeader>
+                              <CardTitle className="flex items-center justify-between">
+                                <span>{budget.name}</span>
+                                <span className="text-sm font-normal text-muted-foreground">
+                                  {budget.month} {budget.year}
+                                </span>
+                              </CardTitle>
+                              <CardDescription>
+                                {budget.members.join(' & ')}
+                              </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-3">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground">Total Salary:</span>
+                                  <span className="font-medium text-success">
+                                    ${Object.values(budget.salaries || {}).reduce((sum, salary) => sum + salary, 0).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground">Commitments:</span>
+                                  <span className="font-medium text-destructive">
+                                    ${Object.values(budget.totalCommitments || {}).reduce((sum, commitment) => sum + commitment, 0).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-sm font-medium pt-2 border-t border-border">
+                                  <span>Balance:</span>
+                                  <span className={Object.values(budget.balance || {}).reduce((sum, balance) => sum + balance, 0) >= 0 ? 'text-success' : 'text-destructive'}>
+                                    ${Object.values(budget.balance || {}).reduce((sum, balance) => sum + balance, 0).toLocaleString()}
+                                  </span>
+                                </div>
+                              </div>
 
-                    <div className="flex space-x-2 mt-6">
-                      <Button variant="outline" size="sm" className="flex-1" asChild>
-                        <Link to={`/budget/${budget.id}`}>
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Link>
-                      </Button>
-                      <Button variant="outline" size="sm" className="flex-1" asChild>
-                        <Link to={`/budget/${budget.id}/edit`}>
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Link>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => handleDeleteBudget(budget.id)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                              <div className="flex space-x-2 mt-6">
+                                <Button variant="outline" size="sm" className="flex-1" asChild>
+                                  <Link to={`/budget/${budget.id}`}>
+                                    <Eye className="h-4 w-4 mr-1" />
+                                    View
+                                  </Link>
+                                </Button>
+                                <Button variant="outline" size="sm" className="flex-1" asChild>
+                                  <Link to={`/budget/${budget.id}/edit`}>
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    Edit
+                                  </Link>
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleDeleteBudget(budget.id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               ))}
             </div>
           </div>
