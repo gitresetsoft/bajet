@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calculator, ArrowLeft, Plus, X, Eye, Edit, Save, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { Calculator, ArrowLeft, Plus, X, Eye, Edit, Save, ChevronDown, ChevronRight, Trash2, Table, List } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,6 +36,7 @@ interface Budget {
 }
 
 type Mode = 'create' | 'view' | 'edit';
+type ViewMode = 'structured' | 'ledger';
 
 export default function CreateViewEditBudget() {
   const { user } = useAuth();
@@ -52,6 +53,7 @@ export default function CreateViewEditBudget() {
   const [members, setMembers] = useState([user?.name || '']);
   const [commitments, setCommitments] = useState<CommitmentGroup[]>([]);
   const [salaries, setSalaries] = useState<Record<string, number>>({});
+  const [viewMode, setViewMode] = useState<ViewMode>('structured');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -428,17 +430,158 @@ export default function CreateViewEditBudget() {
               </Link>
             </Button>
             <div className="flex items-center space-x-2">
-              <Calculator className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">{getPageTitle()}</h1>
+             <img src="/icon.jpg" alt="Budget Icon" className="h-8 w-8" />
+               <h1 className="text-2xl font-bold text-foreground">{getPageTitle()}</h1>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content ---------------------------------------------------------*/}
+      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Basic Information Card */}
+        
+        {/* Toggle Mode */}
+        {mode === 'view' && (
+          <div className="max-w-6xl mx-auto">
+            <span className="hidden md:inline text-sm text-muted-foreground">View Mode:</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setViewMode(viewMode === 'structured' ? 'ledger' : 'structured')}
+              className="flex items-center space-x-2"
+            >
+              {viewMode === 'structured' ? (
+                <>
+                  <List className="h-4 w-4" />
+                  <span className="hidden md:inline">Structured</span>
+                </>
+              ) : (
+                <>
+                  <Table className="h-4 w-4" />
+                  <span className="hidden md:inline">Ledger</span>
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+        
+        {mode === 'view' && viewMode === 'ledger' ? (
+          <div className="max-w-6xl mx-auto">
+             {/* Ledger View */}
+             <div className="bg-white border border-border rounded-lg overflow-hidden">
+               {/* Ledger Header */}
+               <div className="bg-muted px-4 py-3 border-b border-border">
+                 <h2 className="text-lg font-semibold text-foreground">
+                   {budgetName} - {selectedMonth} {selectedYear}
+                 </h2>
+               </div>
+               
+               {/* Ledger Table */}
+               <div className="overflow-x-auto">
+                 <table className="w-full text-sm md:text-base">
+                   {/* Table Header */}
+                   <thead className="bg-muted/50">
+                     <tr>
+                                                <th className="text-left px-2 md:px-4 py-2 font-medium text-foreground border-r border-border">
+                           Commitments
+                         </th>
+                       {members.map((member) => (
+                         <th key={member} className="text-right px-2 md:px-4 py-2 font-medium text-foreground border-r border-border last:border-r-0">
+                           {member}
+                         </th>
+                       ))}
+                     </tr>
+                   </thead>
+                   
+                   {/* Table Body */}
+                   <tbody>
+                     {commitments.map((group) => (
+                       <React.Fragment key={group.id}>
+                         {/* Group Header */}
+                         <tr className="bg-muted/30">
+                           <td className="px-2 md:px-4 py-2 font-semibold text-foreground border-r border-border">
+                             {group.name}
+                           </td>
+                           {members.map((member) => (
+                             <td key={member} className="px-2 md:px-4 py-2 border-r border-border last:border-r-0"></td>
+                           ))}
+                         </tr>
+                         
+                         {/* Group Items */}
+                         {group.items.map((item) => (
+                           <tr key={item.id} className="border-b border-border hover:bg-muted/20">
+                             <td className="px-3 md:px-6 py-2 text-foreground border-r border-border">
+                               {item.name}
+                             </td>
+                             {members.map((member) => (
+                               <td key={member} className="px-2 md:px-4 py-2 text-right border-r border-border last:border-r-0">
+                                 {item.amounts[member] && item.amounts[member] > 0 
+                                   ? item.amounts[member].toFixed(2) 
+                                   : ''}
+                               </td>
+                             ))}
+                           </tr>
+                         ))}
+                       </React.Fragment>
+                     ))}
+                     
+                     {/* Summary Section */}
+                     <tr className="bg-muted/50 border-t-2 border-border">
+                                                <td className="px-2 md:px-4 py-3 font-semibold text-foreground border-r border-border">
+                           Salary
+                         </td>
+                       {members.map((member) => (
+                         <td key={member} className="px-2 md:px-4 py-3 text-right font-semibold text-foreground border-r border-border last:border-r-0">
+                           RM {(salaries[member] || 0).toFixed(2)}
+                         </td>
+                       ))}
+                     </tr>
+                     
+                     <tr className="border-b border-border">
+                                                <td className="px-2 md:px-4 py-2 font-semibold text-foreground border-r border-border">
+                           Total Commitments
+                         </td>
+                       {members.map((member) => (
+                         <td key={member} className="px-2 md:px-4 py-2 text-right font-semibold text-destructive border-r border-border last:border-r-0">
+                           RM {totalCommitments[member]?.toFixed(2) || '0.00'}
+                         </td>
+                       ))}
+                     </tr>
+                     
+                     <tr className="bg-muted/30 border-t-2 border-border">
+                                                <td className="px-2 md:px-4 py-3 font-bold text-foreground border-r border-border">
+                           Balance
+                         </td>
+                       {members.map((member) => (
+                         <td key={member} className={`px-2 md:px-4 py-3 text-right font-bold border-r border-border last:border-r-0 ${
+                           balance[member] >= 0 ? 'text-success' : 'text-destructive'
+                         }`}>
+                           RM {balance[member]?.toFixed(2) || '0.00'}
+                         </td>
+                       ))}
+                     </tr>
+                   </tbody>
+                 </table>
+               </div>
+             </div>
+             
+             {/* Action Buttons for Ledger View */}
+             <div className="flex space-x-4 mt-6">
+               <Button type="button" variant="outline" asChild className="flex-1">
+                 <Link to="/dashboard">Back to Dashboard</Link>
+               </Button>
+               <Button type="button" asChild className="flex-1">
+                 <Link to={`/budget/${budgetId}/edit`}>
+                   <Edit className="h-4 w-4 mr-2" />
+                   Edit Budget
+                 </Link>
+               </Button>
+             </div>
+           </div>
+         ) : (
+           <div className="max-w-4xl mx-auto space-y-6">
+          {/* Basic Information Card --------------------------------------------------------- */}
           <Card className="border-border">
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
@@ -449,7 +592,7 @@ export default function CreateViewEditBudget() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Top Row: Title, Month, Year */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="budgetName">Budget Name</Label>
                     <Input
@@ -461,35 +604,38 @@ export default function CreateViewEditBudget() {
                       disabled={mode === 'view'}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Month</Label>
-                    <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={mode === 'view'}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {months.map((month) => (
-                          <SelectItem key={month} value={month}>
-                            {month}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Year</Label>
-                    <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))} disabled={mode === 'view'}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {years.map((year) => (
-                          <SelectItem key={year} value={year.toString()}>
-                            {year}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Month</Label>
+                      <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={mode === 'view'}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {months.map((month) => (
+                            <SelectItem key={month} value={month}>
+                              {month}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Year</Label>
+                      <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))} disabled={mode === 'view'}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {years.map((year) => (
+                            <SelectItem key={year} value={year.toString()}>
+                              {year}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
 
@@ -546,12 +692,6 @@ export default function CreateViewEditBudget() {
                      Add your monthly commitments and expenses for each member.
                    </CardDescription>
                  </div>
-                 {mode !== 'view' && (
-                   <Button type="button" variant="outline" size="sm" onClick={addCommitmentGroup}>
-                     <Plus className="h-4 w-4 mr-2" />
-                     Add Group
-                   </Button>
-                 )}
                </div>
              </CardHeader>
              <CardContent>
@@ -647,7 +787,7 @@ export default function CreateViewEditBudget() {
                                    <X className="h-4 w-4" />
                                  </Button>
                                )}
-                               
+
                              </div>
                            </div>
                          ))}
@@ -655,12 +795,19 @@ export default function CreateViewEditBudget() {
                      )}
                    </div>
                  ))}
+ 
+                {mode !== 'view' && (
+                   <Button type="button" variant="outline" size="sm" onClick={addCommitmentGroup}>
+                     <Plus className="h-4 w-4 mr-2" />
+                     Add Commitments
+                   </Button>
+                )}
 
-                 {commitments.length === 0 && (
+                {commitments.length === 0 && (
                    <div className="text-center py-8 text-muted-foreground">
                      No commitments added yet. {mode !== 'view' && 'Click "Add Group" to get started.'}
                    </div>
-                 )}
+                )}
                </div>
              </CardContent>
            </Card>
@@ -724,35 +871,36 @@ export default function CreateViewEditBudget() {
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
-          <div className="flex space-x-4">
-            {mode === 'view' ? (
-              <>
-                <Button type="button" variant="outline" asChild className="flex-1">
-                  <Link to="/dashboard">Back to Dashboard</Link>
-                </Button>
-                <Button type="button" asChild className="flex-1">
-                  <Link to={`/budget/${budgetId}/edit`}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Budget
-                  </Link>
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button type="submit" className="flex-1" disabled={isSubmitting} onClick={handleSubmit}>
-                  {isSubmitting ? (mode === 'create' ? 'Creating...' : 'Saving...') : (
-                    mode === 'create' ? 'Create Budget' : 'Save Changes'
-                  )}
-                </Button>
-                <Button type="button" variant="outline" asChild>
-                  <Link to="/dashboard">Cancel</Link>
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+                     {/* Action Buttons */}
+           <div className="flex space-x-4">
+             {mode === 'view' ? (
+               <>
+                 <Button type="button" variant="outline" asChild className="flex-1">
+                   <Link to="/dashboard">Back to Dashboard</Link>
+                 </Button>
+                 <Button type="button" asChild className="flex-1">
+                   <Link to={`/budget/${budgetId}/edit`}>
+                     <Edit className="h-4 w-4 mr-2" />
+                     Edit Budget
+                   </Link>
+                 </Button>
+               </>
+             ) : (
+               <>
+                 <Button type="submit" className="flex-1" disabled={isSubmitting} onClick={handleSubmit}>
+                   {isSubmitting ? (mode === 'create' ? 'Creating...' : 'Saving...') : (
+                     mode === 'create' ? 'Create Budget' : 'Save Changes'
+                   )}
+                 </Button>
+                 <Button type="button" variant="outline" asChild>
+                   <Link to="/dashboard">Cancel</Link>
+                 </Button>
+               </>
+             )}
+           </div>
+         </div>
+       )}
+     </main>
+   </div>
+ );
 }

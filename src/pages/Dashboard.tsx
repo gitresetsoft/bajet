@@ -71,7 +71,7 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Calculator className="h-8 w-8 text-primary" />
+              <img src="/icon.jpg" alt="Budget Icon" className="h-8 w-8" />
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Budget Dashboard</h1>
                 <p className="text-sm text-muted-foreground">Welcome back, {user?.name}</p>
@@ -151,19 +151,19 @@ export default function Dashboard() {
                                 <div className="flex justify-between text-sm">
                                   <span className="text-muted-foreground">Total Salary:</span>
                                   <span className="font-medium text-success">
-                                    ${Object.values(budget.salaries || {}).reduce((sum, salary) => sum + salary, 0).toLocaleString()}
+                                    RM {Object.values(budget.salaries || {}).reduce((sum, salary) => sum + salary, 0).toLocaleString()}
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-sm">
                                   <span className="text-muted-foreground">Commitments:</span>
                                   <span className="font-medium text-destructive">
-                                    ${Object.values(budget.totalCommitments || {}).reduce((sum, commitment) => sum + commitment, 0).toLocaleString()}
+                                    RM {Object.values(budget.totalCommitments || {}).reduce((sum, commitment) => sum + commitment, 0).toLocaleString()}
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-sm font-medium pt-2 border-t border-border">
                                   <span>Balance:</span>
                                   <span className={Object.values(budget.balance || {}).reduce((sum, balance) => sum + balance, 0) >= 0 ? 'text-success' : 'text-destructive'}>
-                                    ${Object.values(budget.balance || {}).reduce((sum, balance) => sum + balance, 0).toLocaleString()}
+                                    RM {Object.values(budget.balance || {}).reduce((sum, balance) => sum + balance, 0).toLocaleString()}
                                   </span>
                                 </div>
                               </div>
