@@ -13,6 +13,7 @@ interface CommitmentItem {
   id: string;
   name: string;
   amounts: Record<string, number>;
+  paidStatus: Record<string, boolean>;
 }
 
 interface CommitmentGroup {
@@ -69,18 +70,29 @@ export default function CreateViewEditBudget() {
   const calculateTotals = () => {
     const totalCommitments: Record<string, number> = {};
     const balance: Record<string, number> = {};
+    const paidAmounts: Record<string, number> = {};
+    const unpaidAmounts: Record<string, number> = {};
 
     // Initialize totals for each member
     members.forEach(member => {
       totalCommitments[member] = 0;
       balance[member] = 0;
+      paidAmounts[member] = 0;
+      unpaidAmounts[member] = 0;
     });
 
-    // Calculate total commitments
+    // Calculate total commitments and paid/unpaid amounts
     commitments.forEach(group => {
       group.items.forEach(item => {
         members.forEach(member => {
-          totalCommitments[member] += item.amounts[member] || 0;
+          const amount = item.amounts[member] || 0;
+          totalCommitments[member] += amount;
+          
+          if (item.paidStatus[member]) {
+            paidAmounts[member] += amount;
+          } else {
+            unpaidAmounts[member] += amount;
+          }
         });
       });
     });
@@ -90,10 +102,10 @@ export default function CreateViewEditBudget() {
       balance[member] = (salaries[member] || 0) - totalCommitments[member];
     });
 
-    return { totalCommitments, balance };
+    return { totalCommitments, balance, paidAmounts, unpaidAmounts };
   };
 
-  const { totalCommitments, balance } = calculateTotals();
+  const { totalCommitments, balance, paidAmounts, unpaidAmounts } = calculateTotals();
 
   // Load budget data for view/edit modes
   useEffect(() => {
@@ -133,7 +145,17 @@ export default function CreateViewEditBudget() {
 
   const addMember = () => {
     if (members.length < 2) {
-      setMembers([...members, '']);
+      const newMemberName = '';
+      setMembers([...members, newMemberName]);
+      
+      // Initialize paid status for existing commitment items for the new member
+      setCommitments(prev => prev.map(group => ({
+        ...group,
+        items: group.items.map(item => ({
+          ...item,
+          paidStatus: { ...item.paidStatus, [newMemberName]: false }
+        }))
+      })));
     }
   };
 
@@ -142,13 +164,15 @@ export default function CreateViewEditBudget() {
       const newMembers = members.filter((_, i) => i !== index);
       setMembers(newMembers);
       
-      // Update commitments to remove the member's amounts
+      // Update commitments to remove the member's amounts and paid status
       setCommitments(prev => prev.map(group => ({
         ...group,
         items: group.items.map(item => {
           const newAmounts = { ...item.amounts };
+          const newPaidStatus = { ...item.paidStatus };
           delete newAmounts[members[index]];
-          return { ...item, amounts: newAmounts };
+          delete newPaidStatus[members[index]];
+          return { ...item, amounts: newAmounts, paidStatus: newPaidStatus };
         })
       })));
     }
@@ -160,17 +184,22 @@ export default function CreateViewEditBudget() {
     updatedMembers[index] = value;
     setMembers(updatedMembers);
     
-    // Update commitments to rename the member's amounts
+    // Update commitments to rename the member's amounts and paid status
     if (oldName && oldName !== value) {
       setCommitments(prev => prev.map(group => ({
         ...group,
         items: group.items.map(item => {
           const newAmounts = { ...item.amounts };
+          const newPaidStatus = { ...item.paidStatus };
           if (newAmounts[oldName] !== undefined) {
             newAmounts[value] = newAmounts[oldName];
             delete newAmounts[oldName];
           }
-          return { ...item, amounts: newAmounts };
+          if (newPaidStatus[oldName] !== undefined) {
+            newPaidStatus[value] = newPaidStatus[oldName];
+            delete newPaidStatus[oldName];
+          }
+          return { ...item, amounts: newAmounts, paidStatus: newPaidStatus };
         })
       })));
       
@@ -213,10 +242,17 @@ export default function CreateViewEditBudget() {
   };
 
   const addCommitmentItem = (groupId: string) => {
+    // Initialize paid status for all current members
+    const initialPaidStatus: Record<string, boolean> = {};
+    members.forEach(member => {
+      initialPaidStatus[member] = false;
+    });
+    
     const newItem: CommitmentItem = {
       id: `item_${Date.now()}`,
       name: '',
-      amounts: {}
+      amounts: {},
+      paidStatus: initialPaidStatus
     };
     
     setCommitments(prev => prev.map(group => 
@@ -246,12 +282,48 @@ export default function CreateViewEditBudget() {
             ...group,
             items: group.items.map(item => 
               item.id === itemId 
-                ? { ...item, amounts: { ...item.amounts, [member]: amount } }
+                ? { 
+                    ...item, 
+                    amounts: { ...item.amounts, [member]: amount },
+                    paidStatus: { ...item.paidStatus, [member]: item.paidStatus[member] || false }
+                  }
                 : item
             )
           }
         : group
     ));
+  };
+
+  const updateCommitmentPaidStatus = (groupId: string, itemId: string, member: string, isPaid: boolean) => {
+    setCommitments(prev => prev.map(group => 
+      group.id === groupId 
+        ? {
+            ...group,
+            items: group.items.map(item => 
+              item.id === itemId 
+                ? { 
+                    ...item, 
+                    paidStatus: { 
+                      ...item.paidStatus, 
+                      [member]: isPaid 
+                    } 
+                  }
+                : item
+            )
+          }
+        : group
+    ));
+  };
+
+  // Helper function to ensure paid status is initialized for all members
+  const ensurePaidStatusInitialized = (item: CommitmentItem) => {
+    const updatedPaidStatus = { ...item.paidStatus };
+    members.forEach(member => {
+      if (updatedPaidStatus[member] === undefined) {
+        updatedPaidStatus[member] = false;
+      }
+    });
+    return updatedPaidStatus;
   };
 
   const removeCommitmentItem = (groupId: string, itemId: string) => {
@@ -293,6 +365,7 @@ export default function CreateViewEditBudget() {
       group.items.some(item => !item.name.trim())
     );
 
+        // TODO: Add the group/item name for reference
     if (hasEmptyGroups || hasEmptyItems) {
       toast({
         title: "Validation Error",
@@ -437,12 +510,14 @@ export default function CreateViewEditBudget() {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content 
+        // TODO: Add PAID check mark 
+      */}
       <main className="container mx-auto px-4 py-8">
         
         {/* Toggle Mode */}
         {mode === 'view' && (
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-4xl mx-auto flex justify-end items-center space-x-2 pb-4">
             <span className="hidden md:inline text-sm text-muted-foreground">View Mode:</span>
             <Button
               type="button"
@@ -459,7 +534,7 @@ export default function CreateViewEditBudget() {
               ) : (
                 <>
                   <Table className="h-4 w-4" />
-                  <span className="hidden md:inline">Ledger</span>
+                  <span className="hidden md:inline">Ledger View</span>
                 </>
               )}
             </Button>
@@ -467,23 +542,25 @@ export default function CreateViewEditBudget() {
         )}
         
         {mode === 'view' && viewMode === 'ledger' ? (
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-4xl mx-auto">
              {/* Ledger View */}
              <div className="bg-white border border-border rounded-lg overflow-hidden">
                {/* Ledger Header */}
-               <div className="bg-muted px-4 py-3 border-b border-border">
-                 <h2 className="text-lg font-semibold text-foreground">
-                   {budgetName} - {selectedMonth} {selectedYear}
-                 </h2>
-               </div>
+              <div className="bg-muted px-4 py-3 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground flex justify-between items-center">
+                <span>{budgetName}</span>
+                <span>{selectedMonth} {selectedYear}</span>
+              </h2>
+
+              </div>
                
-               {/* Ledger Table */}
-               <div className="overflow-x-auto">
+              {/* Ledger Table */}
+              <div className="overflow-x-auto">
                  <table className="w-full text-sm md:text-base">
                    {/* Table Header */}
                    <thead className="bg-muted/50">
                      <tr>
-                                                <th className="text-left px-2 md:px-4 py-2 font-medium text-foreground border-r border-border">
+                        <th className="text-left px-2 md:px-4 py-2 font-medium text-foreground border-r border-border">
                            Commitments
                          </th>
                        {members.map((member) => (
@@ -516,9 +593,11 @@ export default function CreateViewEditBudget() {
                              </td>
                              {members.map((member) => (
                                <td key={member} className="px-2 md:px-4 py-2 text-right border-r border-border last:border-r-0">
-                                 {item.amounts[member] && item.amounts[member] > 0 
-                                   ? item.amounts[member].toFixed(2) 
-                                   : ''}
+                                 {item.amounts[member] && item.amounts[member] > 0 ? (
+                                   <span className={`${ensurePaidStatusInitialized(item)[member] ? 'font-bold text-green-600' : ''}`}>
+                                     RM {item.amounts[member].toFixed(2)}
+                                   </span>
+                                 ) : ''}
                                </td>
                              ))}
                            </tr>
@@ -774,6 +853,25 @@ export default function CreateViewEditBudget() {
                                      step="0.01"
                                      min="0"
                                    />
+                                   {/* Paid/Unpaid Toggle */}
+                                   <div className="flex items-center space-x-2">
+                                     <input
+                                       type="checkbox"
+                                       id={`paid-${item.id}-${member}`}
+                                       checked={ensurePaidStatusInitialized(item)[member] || false}
+                                       onChange={(e) => updateCommitmentPaidStatus(group.id, item.id, member, e.target.checked)}
+                                       disabled={mode === 'view'}
+                                       className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary focus:ring-2"
+                                     />
+                                     <Label 
+                                       htmlFor={`paid-${item.id}-${member}`} 
+                                       className={`text-xs font-medium cursor-pointer ${
+                                         ensurePaidStatusInitialized(item)[member] ? 'text-green-600' : 'text-red-600'
+                                       }`}
+                                     >
+                                       {ensurePaidStatusInitialized(item)[member] ? 'PAID' : 'UNPAID'}
+                                     </Label>
+                                   </div>
                                  </div>
                                ))}
                                
@@ -838,6 +936,25 @@ export default function CreateViewEditBudget() {
                         step="0.01"
                         min="0"
                       />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Paid/Unpaid Summary Row */}
+                <div className="flex items-center space-x-4">
+                  <Label className="w-32 font-medium">Paid / Unpaid:</Label>
+                  {members.map((member) => (
+                    <div key={member} className="flex items-center space-x-2">
+                      <span className="text-sm text-muted-foreground">{member}:</span>
+                      <span className="w-24 text-right text-sm">
+                        <span className="text-green-600 font-medium">
+                          RM {(paidAmounts[member] || 0).toFixed(2)}
+                        </span>
+                        <span className="text-muted-foreground mx-1">/</span>
+                        <span className="text-red-600 font-medium">
+                          RM {(unpaidAmounts[member] || 0).toFixed(2)}
+                        </span>
+                      </span>
                     </div>
                   ))}
                 </div>
