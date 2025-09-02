@@ -89,6 +89,10 @@ export default function CreateViewEditBudget() {
           const amount = item.amounts[member] || 0;
           totalCommitments[member] += amount;
           
+          if (!item.paidStatus) {
+            item.paidStatus = { [member]: false };
+          }
+
           if (item.paidStatus[member]) {
             paidAmounts[member] += amount;
           } else {
@@ -937,12 +941,12 @@ export default function CreateViewEditBudget() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4 grid grid-cols-2 md:grid-cols-1 ">
+              <div className="space-y-4 grid grid-cols-2 md:grid-cols-1">
                 {/* Salary Row */}
                 <div className="flex items-center space-x-4">
                   <Label className="w-32 font-medium">Salary:</Label>
                   {members.map((member) => (
-                    <div key={member} className="flex items-center space-x-2">
+                    <div key={member} className="md:min-w-[250px] flex items-center space-x-2">
                       <span className="text-sm text-muted-foreground">{member}:</span>
                       <Input
                         type="number"
@@ -959,12 +963,12 @@ export default function CreateViewEditBudget() {
                 </div>
 
                 {/* Paid/Unpaid Summary Row */}
-                {/* <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-4">
                   <Label className="w-32 font-medium">Paid / Unpaid:</Label>
                   {members.map((member) => (
-                    <div key={member} className="flex items-center space-x-2">
+                    <div key={member} className="md:min-w-[250px] flex items-center space-x-2">
                       <span className="text-sm text-muted-foreground">{member}:</span>
-                      <span className="w-24 text-right text-sm">
+                      <span className="md:w-30 text-right pl-2">
                         <span className="text-green-600 font-medium">
                           RM {(paidAmounts[member] || 0).toFixed(2)}
                         </span>
@@ -975,27 +979,16 @@ export default function CreateViewEditBudget() {
                       </span>
                     </div>
                   ))}
-                </div> */}
+                </div>
 
                 {/* Total Commitments Row */}
                 <div className="flex items-center space-x-4">
                   <Label className="w-32 font-medium">Total Commitments:</Label>
                   {members.map((member) => (
-                    <div key={member} className="flex items-center space-x-2">
+                    <div key={member} className="md:min-w-[250px] flex items-center space-x-2">
                       <span className="text-sm text-muted-foreground">{member}:</span>
-                      <span className="w-50 text-right font-medium text-destructive">
+                      <span className="w-50 text-right font-medium text-destructive pl-2">
                         RM {totalCommitments[member]?.toFixed(2) || '0.00'} 
-                        {"( "}
-                        <span className="w-24 text-right text-sm">
-                          <span className="text-green-600 font-medium">
-                            RM {(paidAmounts[member] || 0).toFixed(2)}
-                          </span>
-                          <span className="text-muted-foreground mx-1">/</span>
-                          <span className="text-red-600 font-medium">
-                            RM {(unpaidAmounts[member] || 0).toFixed(2)}
-                          </span>
-                        </span>
-                       {" )"}
                       </span>
                     </div>
                   ))}
@@ -1005,7 +998,7 @@ export default function CreateViewEditBudget() {
                 <div className="flex items-center space-x-4 pt-2 border-t border-border">
                   <Label className="w-32 font-medium">Balance:</Label>
                   {members.map((member) => (
-                    <div key={member} className="flex items-center space-x-2">
+                    <div key={member} className="md:min-w-[250px] flex items-center space-x-2">
                       <span className="text-sm text-muted-foreground">{member}:</span>
                       <span className={`w-24 text-right font-bold ${balance[member] >= 0 ? 'text-success' : 'text-destructive'}`}>
                         RM {balance[member]?.toFixed(2) || '0.00'}
