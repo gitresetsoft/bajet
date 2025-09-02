@@ -71,7 +71,7 @@ export default function Dashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <img src="/icon.jpg" alt="Budget Icon" className="h-8 w-8" />
+              <img src="/icon.png" alt="Budget Icon" className="h-8 w-8" />
               <div>
                 <h1 className="text-2xl font-bold text-foreground">Budget Dashboard</h1>
                 <p className="text-sm text-muted-foreground">Welcome back, {user?.name}</p>

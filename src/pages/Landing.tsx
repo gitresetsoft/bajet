@@ -10,7 +10,7 @@ export default function Landing() {
       <header className="container mx-auto px-4 py-6">
         <nav className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <img src="/icon.jpg" alt="Budget Icon" className="h-8 w-8" />
+            <img src="/icon.png" alt="Budget Icon" className="h-8 w-8" />
             <span className="text-2xl font-bold text-foreground">Bajet</span>
           </div>
           <div className="space-x-4">
@@ -111,7 +111,7 @@ export default function Landing() {
 
           <Card className="border-border hover:shadow-lg transition-shadow">
             <CardHeader>
-              <img src="/icon.jpg" alt="Budget Icon" className="h-8 w-8" />
+              <img src="/icon.png" alt="Budget Icon" className="h-8 w-8" />
               <CardTitle>Easy Expense Entry</CardTitle>
               <CardDescription>
                 Quick and intuitive expense logging with categorization and receipt tracking
@@ -143,7 +143,7 @@ export default function Landing() {
       <footer className="bg-muted py-12">
         <div className="container mx-auto px-4 text-center">
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <img src="/icon.jpg" alt="Budget Icon" className="h-8 w-8" />
+            <img src="/icon.png" alt="Budget Icon" className="h-8 w-8" />
             <span className="text-xl font-bold text-foreground">BudgetTracker</span>
           </div>
           <p className="text-muted-foreground">
