@@ -937,7 +937,7 @@ export default function CreateViewEditBudget() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-4 grid grid-cols-2 md:grid-cols-1 ">
                 {/* Salary Row */}
                 <div className="flex items-center space-x-4">
                   <Label className="w-32 font-medium">Salary:</Label>
@@ -959,7 +959,7 @@ export default function CreateViewEditBudget() {
                 </div>
 
                 {/* Paid/Unpaid Summary Row */}
-                <div className="flex items-center space-x-4">
+                {/* <div className="flex items-center space-x-4">
                   <Label className="w-32 font-medium">Paid / Unpaid:</Label>
                   {members.map((member) => (
                     <div key={member} className="flex items-center space-x-2">
@@ -975,7 +975,7 @@ export default function CreateViewEditBudget() {
                       </span>
                     </div>
                   ))}
-                </div>
+                </div> */}
 
                 {/* Total Commitments Row */}
                 <div className="flex items-center space-x-4">
@@ -983,8 +983,19 @@ export default function CreateViewEditBudget() {
                   {members.map((member) => (
                     <div key={member} className="flex items-center space-x-2">
                       <span className="text-sm text-muted-foreground">{member}:</span>
-                      <span className="w-24 text-right font-medium text-destructive">
-                        RM {totalCommitments[member]?.toFixed(2) || '0.00'}
+                      <span className="w-50 text-right font-medium text-destructive">
+                        RM {totalCommitments[member]?.toFixed(2) || '0.00'} 
+                        {"( "}
+                        <span className="w-24 text-right text-sm">
+                          <span className="text-green-600 font-medium">
+                            RM {(paidAmounts[member] || 0).toFixed(2)}
+                          </span>
+                          <span className="text-muted-foreground mx-1">/</span>
+                          <span className="text-red-600 font-medium">
+                            RM {(unpaidAmounts[member] || 0).toFixed(2)}
+                          </span>
+                        </span>
+                       {" )"}
                       </span>
                     </div>
                   ))}
