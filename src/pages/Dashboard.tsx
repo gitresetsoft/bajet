@@ -43,6 +43,7 @@ export default function Dashboard() {
     const savedBudgets = localStorage.getItem(`budgets_${user?.id}`);
     if (savedBudgets) {
       setBudgets(JSON.parse(savedBudgets));
+      console.log(budgets);
     }
   }, [user?.id]);
 
@@ -78,12 +79,6 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Button variant="outline" asChild>
-                <Link to="/create-budget">
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Budget
-                </Link>
-              </Button>
               <Button variant="ghost" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
@@ -113,7 +108,15 @@ export default function Dashboard() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-3xl font-bold text-foreground">Your Budgets</h2>
-              <p className="text-muted-foreground">{budgets.length} budget{budgets.length !== 1 ? 's' : ''} total</p>
+              <div className="flex items-center space-x-4">
+                <p className="text-muted-foreground">{budgets.length} budget{budgets.length !== 1 ? 's' : ''} total</p>
+                <Button variant="outline" asChild>
+                  <Link to="/create-budget">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Budget
+                  </Link>
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-6">

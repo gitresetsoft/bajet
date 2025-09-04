@@ -724,7 +724,7 @@ export default function CreateViewEditBudget() {
                 {/* Second Row: Members */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label>Budget Members</Label>
+                    <Label>Budget Members & Salaries</Label> {/* Updated label to reflect salary inclusion */}
                     {mode !== 'view' && members.length < 2 && (
                       <Button type="button" variant="outline" size="sm" onClick={addMember}>
                         <Plus className="h-4 w-4 mr-2" />
@@ -735,14 +735,30 @@ export default function CreateViewEditBudget() {
                   
                   <div className="space-y-3">
                     {members.map((member, index) => (
-                      <div key={index} className="flex items-center space-x-2">
+                      <div key={index} className="items-center space-x-4 grid md:grid-cols-[65%_30%_5%]">
                         <Input
                           placeholder={`Member ${index + 1} name`}
                           value={member}
                           onChange={(e) => updateMember(index, e.target.value)}
                           required
                           disabled={mode === 'view'}
+                          className="flex-1"
                         />
+                        {/* Salary Input for the current member */}
+                        <div className="flex items-center space-x-1">
+                          <span className="text-sm text-bold mr-2">Salary: </span>
+                          <span className="text-sm text-muted-foreground">RM</span>
+                          <Input
+                            type="number"
+                            placeholder="0.00"
+                            value={salaries[member] || ''}
+                            onChange={(e) => updateSalary(member, parseFloat(e.target.value) || 0)}
+                            disabled={mode === 'view'}
+                            className="w-32"
+                            step="0.01"
+                            min="0"
+                          />
+                        </div>
                         {mode !== 'view' && members.length > 1 && (
                           <Button
                             type="button"
@@ -757,7 +773,7 @@ export default function CreateViewEditBudget() {
                     ))}
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    You can add up to 2 members for this budget.
+                    You can add up to 2 members for this budget, each with their respective salary.
                   </p>
                 </div>
               </form>
@@ -779,7 +795,17 @@ export default function CreateViewEditBudget() {
              <CardContent>
                <div className="space-y-6">
                  {commitments.map((group) => (
-                   <div key={group.id} className="border border-border rounded-lg p-4">
+                   <div key={group.id} className={`border border-border rounded-lg p-4 shadow-sm
+                      ${group.items.every(item =>
+                        members.some(m => (item.amounts?.[m] ?? 0) > 0) &&
+                        members.every(
+                          (m) => (item.amounts?.[m] ?? 0) === 0 || item.paidStatus?.[m] === true
+                        )
+                      )
+                        ? "border-t-4 border-green-500"
+                        : "border-t-4 border-t-gray-200"
+                      }`}
+                      >
                      {/* Group Header */}
                      <div className="flex items-center justify-between mb-4">
                        <div className="flex items-center space-x-2">
@@ -788,7 +814,6 @@ export default function CreateViewEditBudget() {
                            variant="ghost"
                            size="sm"
                            onClick={() => toggleGroupExpansion(group.id)}
-                           disabled={mode === 'view'}
                          >
                            {group.isExpanded ? (
                              <ChevronDown className="h-4 w-4" />
@@ -829,9 +854,18 @@ export default function CreateViewEditBudget() {
 
                      {/* Group Items - Horizontal Layout per Member */}
                      {group.isExpanded && (
-                       <div className="space-y-3 ml-6">
+                       <div className={`space-y-3 ml-6`}>
                          {group.items.map((item) => (
-                            <div key={item.id} className="space-y-2 shadow-md rounded-md p-2">
+                            <div key={item.id} className={`space-y-2 shadow-md rounded-md p-2 
+                              ${members.some(m => (item.amounts?.[m] ?? 0) > 0) && 
+                                members.every(
+                                  (m) => (item.amounts?.[m] ?? 0) === 0 || item.paidStatus?.[m] === true
+                                )
+                              ? "border-t-4 border-t-green-300"
+                              : "border-t-4 border-t-red-300"
+                              }`
+                            }
+                            >
                               {/* Item Name Row */}
 
                               <div className="grid grid-cols-2 md:grid-cols-[35%_55%_10%] gap-4">
@@ -887,24 +921,26 @@ export default function CreateViewEditBudget() {
                                         min="0"
                                       />
                                       {/* Paid/Unpaid Toggle */}
-                                      <div className="flex items-center space-x-2">
-                                        <input
-                                          type="checkbox"
-                                          id={`paid-${item.id}-${member}`}
-                                          checked={ensurePaidStatusInitialized(item)[member] || false}
-                                          onChange={(e) => updateCommitmentPaidStatus(group.id, item.id, member, e.target.checked)}
-                                          disabled={mode === 'view'}
-                                          className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary focus:ring-2"
-                                        />
-                                        <Label 
-                                          htmlFor={`paid-${item.id}-${member}`} 
-                                          className={`text-xs font-medium cursor-pointer w-10 ${
-                                            ensurePaidStatusInitialized(item)[member] ? 'text-green-600' : 'text-red-600'
-                                          }`}
-                                        >
-                                          {ensurePaidStatusInitialized(item)[member] ? 'PAID' : 'UNPAID'}
-                                        </Label>
-                                      </div>
+                                      {(item.amounts[member] || 0) <= 0 ? '' :
+                                        <div className="flex items-center space-x-2">
+                                          <input
+                                            type="checkbox"
+                                            id={`paid-${item.id}-${member}`}
+                                            checked={ensurePaidStatusInitialized(item)[member] || false}
+                                            onChange={(e) => updateCommitmentPaidStatus(group.id, item.id, member, e.target.checked)}
+                                            disabled={mode === 'view'}
+                                            className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary focus:ring-2"
+                                          />
+                                          <Label 
+                                            htmlFor={`paid-${item.id}-${member}`} 
+                                            className={`text-xs font-medium cursor-pointer w-10 ${
+                                              ensurePaidStatusInitialized(item)[member] ? 'text-green-600' : 'text-red-600'
+                                            }`}
+                                          >
+                                            {ensurePaidStatusInitialized(item)[member] ? 'PAID' : 'UNPAID'}
+                                          </Label>
+                                        </div>
+                                      }
                                     </div>
                                   ))}
                                 </div>
