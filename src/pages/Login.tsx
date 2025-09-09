@@ -22,8 +22,10 @@ export default function Login() {
     setIsSubmitting(true);
 
     try {
-      const success = await login(email, password);
-      if (success) {
+      console.log(email,password)
+      const result = await login(email, password);
+      console.log(result)
+      if (result.success) {
         toast({
           title: "Welcome back!",
           description: "You've been successfully logged in.",
@@ -32,7 +34,7 @@ export default function Login() {
       } else {
         toast({
           title: "Login failed",
-          description: "Invalid email or password. Please try again.",
+          description: result.error || "Invalid email or password. Please try again.",
           variant: "destructive",
         });
       }
@@ -47,16 +49,6 @@ export default function Login() {
     }
   };
 
-  const fillDemoCredentials = (userType: 'ameer' | 'dini' | 'demo') => {
-    const credentials = {
-      ameer: { email: 'ameer@budget.com', password: 'password123' },
-      dini: { email: 'dini@budget.com', password: 'password123' },
-      demo: { email: 'demo@budget.com', password: 'demo123' },
-    };
-    
-    setEmail(credentials[userType].email);
-    setPassword(credentials[userType].password);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20 flex items-center justify-center p-4">
@@ -64,7 +56,7 @@ export default function Login() {
         {/* Header */}
         <div className="text-center">
           <Link to="/" className="inline-flex items-center space-x-2 mb-6">
-            <Calculator className="h-8 w-8 text-primary" />
+            <img src="/icon.png" alt="Budget Icon" className="h-8 w-8" />
             <span className="text-2xl font-bold text-foreground">BudgetTracker</span>
           </Link>
         </div>
@@ -120,38 +112,16 @@ export default function Login() {
               </Button>
             </form>
 
-            {/* Demo Credentials */}
-            <div className="mt-6 p-4 bg-muted rounded-lg">
-              <p className="text-sm font-medium text-muted-foreground mb-3">Demo Accounts:</p>
-              <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-xs"
-                  onClick={() => fillDemoCredentials('ameer')}
-                >
-                  Ameer (ameer@budget.com)
+            <div className="mt-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Don't have an account?{' '}
+                <Button variant="link" asChild className="p-0 h-auto">
+                  <Link to="/signup">Sign up</Link>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-xs"
-                  onClick={() => fillDemoCredentials('dini')}
-                >
-                  Dini (dini@budget.com)
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-xs"
-                  onClick={() => fillDemoCredentials('demo')}
-                >
-                  Demo User (demo@budget.com)
-                </Button>
-              </div>
+              </p>
             </div>
 
-            <div className="mt-6 text-center">
+            <div className="mt-4 text-center">
               <Button variant="link" asChild>
                 <Link to="/">← Back to Home</Link>
               </Button>
