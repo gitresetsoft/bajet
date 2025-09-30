@@ -57,12 +57,20 @@ export default function Dashboard() {
     });
   };
 
-  const handleLogout = () => {
-    logout();
-    toast({
-      title: "Signed out",
-      description: "You've been successfully signed out.",
-    });
+  const handleLogout = async () => {
+    const result = await logout();
+    if (result.success) {
+      toast({
+        title: "Signed out",
+        description: "You've been successfully signed out.",
+      });
+    } else {
+      toast({
+        title: "Sign out failed",
+        description: result.error || "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

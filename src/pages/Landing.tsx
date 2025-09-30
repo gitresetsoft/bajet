@@ -2,8 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Calculator, PieChart, Users, Shield, TrendingUp, CheckCircle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Landing() {
+  const { user, logout, isLoading } = useAuth();
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
       {/* Header */}
@@ -14,12 +16,20 @@ export default function Landing() {
             <span className="text-2xl font-bold text-foreground">Bajet</span>
           </div>
           <div className="space-x-4">
-            {/* <Button variant="ghost" asChild>
-              <Link to="/login">Sign In</Link>
-            </Button> */}
-            <Button asChild>
-              <Link to="/login">Let's start!</Link>
-            </Button>
+            {user ? (
+              <>
+                <Button variant="secondary" asChild>
+                  <Link to="/dashboard">Go to Dashboard</Link>
+                </Button>
+                <Button variant="ghost" onClick={() => logout()}>
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <Button asChild>
+                <Link to="/login">Let's start!</Link>
+              </Button>
+            )}
           </div>
         </nav>
       </header>

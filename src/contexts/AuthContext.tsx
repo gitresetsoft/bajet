@@ -21,7 +21,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // Get initial session
@@ -91,19 +91,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       setIsLoading(true);
-      
+
+      console.log('[AuthContext.login] start', { email });
+      const startTs = Date.now();
+      const timeoutId = setTimeout(() => {
+        console.warn('[AuthContext.login] taking longer than expected (>10s)');
+      }, 10000);
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      clearTimeout(timeoutId);
+      console.log('[AuthContext.login] response', { elapsedMs: Date.now() - startTs, data, error });
+
       if (error) {
+        console.error('[AuthContext.login] error', error);
         const authError = getAuthError(error);
         return { success: false, error: authError.display };
       }
 
       return { success: true };
     } catch (error) {
+      console.error('[AuthContext.login] exception', error);
       const authError = getAuthError(error);
       return { success: false, error: authError.display };
     } finally {
