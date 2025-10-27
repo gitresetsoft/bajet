@@ -798,7 +798,7 @@ export default function CreateViewEditBudget() {
                          </Button>
                          <Input
                            placeholder="Group name (e.g., Rumah, Loan)"
-                           value={group.name}
+                           value={`${group.name} (${group.items.length})`}
                            onChange={(e) => updateCommitmentGroup(group.id, e.target.value)}
                            disabled={mode === 'view'}
                            className="w-48"
@@ -830,13 +830,13 @@ export default function CreateViewEditBudget() {
                      {/* Group Items - Horizontal Layout per Member */}
                      {group.isExpanded && (
                        <div className="space-y-3 ml-6">
-                         {group.items.map((item) => (
+                         {group.items.map((item, index) => (
                             <div key={item.id} className="space-y-2 shadow-md rounded-md p-2">
                               {/* Item Name Row */}
 
                               <div className="grid grid-cols-2 md:grid-cols-[35%_55%_10%] gap-4">
                                 <div>
-                                  <Label>Item:</Label>
+                                  <Label>Item {index+1}:</Label>
                                   <Input
                                     placeholder="Commitments.."
                                     value={item.name}

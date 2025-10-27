@@ -41,9 +41,9 @@ export default function Landing() {
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>
-          <Button variant="outline" size="lg" className="text-lg px-8 py-6">
+          {/* <Button variant="outline" size="lg" className="text-lg px-8 py-6">
             Watch Demo
-          </Button>
+          </Button> */}
         </div>
       </section>
 
@@ -58,7 +58,7 @@ export default function Landing() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           <Card className="border-border hover:shadow-lg transition-shadow">
             <CardHeader>
               <PieChart className="h-12 w-12 text-primary mb-4" />
@@ -118,11 +118,11 @@ export default function Landing() {
               </CardDescription>
             </CardHeader>
           </Card>
-        </div>
+        </div> */}
       </section>
 
       {/* CTA Section */}
-      <section className="bg-primary py-20">
+      {/* <section className="bg-primary py-20">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold text-primary-foreground mb-6">
             Ready to Transform Your Financial Life?
@@ -137,7 +137,7 @@ export default function Landing() {
             </Link>
           </Button>
         </div>
-      </section>
+      </section> */}
 
       {/* Footer */}
       <footer className="bg-muted py-12">

@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Calculator, Plus, Eye, Edit, Trash2, LogOut, Calendar } from "lucide-react";
+import { Calculator, Plus, Eye, Edit, Trash2, LogOut, Calendar, Copy } from "lucide-react"; // Added Copy icon
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -11,6 +11,7 @@ interface CommitmentItem {
   id: string;
   name: string;
   amounts: Record<string, number>;
+  paidStatus: Record<string, boolean>; // Added paidStatus based on CreateViewEditBudget.tsx
 }
 
 interface CommitmentGroup {
@@ -38,6 +39,11 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [budgets, setBudgets] = useState<Budget[]>([]);
 
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
   useEffect(() => {
     // Load user's budgets from localStorage
     const savedBudgets = localStorage.getItem(`budgets_${user?.id}`);
@@ -46,6 +52,36 @@ export default function Dashboard() {
     }
   }, [user?.id]);
 
+  // Helper function to calculate total commitments and balance for a budget
+  const calculateBudgetTotals = (
+    members: string[],
+    commitments: CommitmentGroup[],
+    salaries: Record<string, number>
+  ) => {
+    const totalCommitments: Record<string, number> = {};
+    const balance: Record<string, number> = {};
+
+    members.forEach(member => {
+      totalCommitments[member] = 0;
+      balance[member] = 0;
+    });
+
+    commitments.forEach(group => {
+      group.items.forEach(item => {
+        members.forEach(member => {
+          const amount = item.amounts[member] || 0;
+          totalCommitments[member] += amount;
+        });
+      });
+    });
+
+    members.forEach(member => {
+      balance[member] = (salaries[member] || 0) - totalCommitments[member];
+    });
+
+    return { totalCommitments, balance };
+  };
+
   const handleDeleteBudget = (budgetId: string) => {
     const updatedBudgets = budgets.filter(budget => budget.id !== budgetId);
     setBudgets(updatedBudgets);
@@ -53,6 +89,71 @@ export default function Dashboard() {
     toast({
       title: "Budget deleted",
       description: "Budget has been successfully removed.",
+    });
+  };
+
+  const handleCopyBudget = (originalBudget: Budget) => {
+    // 1. Determine the latest existing budget date among all budgets
+    // We initialize with the originalBudget's date to ensure it's considered if it's the only or latest one.
+    const latestBudget = budgets.reduce((latest, current) => {
+      const latestDate = new Date(latest.year, months.indexOf(latest.month));
+      const currentDate = new Date(current.year, months.indexOf(current.month));
+      return currentDate > latestDate ? current : latest;
+    }, originalBudget); // Start comparison with the original budget itself
+
+    const latestMonthIndex = months.indexOf(latestBudget.month);
+    const latestYear = latestBudget.year;
+
+    // 2. Calculate the next month and year based on the latest date found
+    const newMonthIndex = (latestMonthIndex + 1) % 12;
+    let newYear = latestYear;
+    if (newMonthIndex === 0 && latestMonthIndex === 11) { // If it was December, move to next year
+      newYear++;
+    }
+    const newMonth = months[newMonthIndex];
+
+    // 3. Deep copy commitments and reset paidStatus
+    const newCommitments: CommitmentGroup[] = originalBudget.commitments.map(group => ({
+      ...group,
+      id: `group_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, // New unique ID for group
+      items: group.items.map(item => ({
+        ...item,
+        id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, // New unique ID for item
+        paidStatus: originalBudget.members.reduce((acc, member) => ({ ...acc, [member]: false }), {}), // All default to unpaid
+      })),
+    }));
+
+    // 4. Create new budget object
+    const newBudgetId = `budget_${Date.now()}`;
+    const newCreatedAt = new Date().toISOString();
+
+    // Calculate derived totals for the new budget
+    const { totalCommitments, balance } = calculateBudgetTotals(
+      originalBudget.members,
+      newCommitments,
+      originalBudget.salaries
+    );
+
+    const copiedBudget: Budget = {
+      ...originalBudget,
+      id: newBudgetId,
+      name: `${originalBudget.month} ${originalBudget.year} (Copy)`, // Suggest a new name based on the original budget's name
+      month: newMonth, // Use the newly calculated month (incremented from the latest existing budget)
+      year: newYear,   // Use the newly calculated year (incremented from the latest existing budget)
+      commitments: newCommitments,
+      totalCommitments, // Recalculated
+      balance, // Recalculated
+      createdAt: newCreatedAt,
+    };
+
+    // 5. Save the new budget
+    const updatedBudgets = [...budgets, copiedBudget];
+    setBudgets(updatedBudgets);
+    localStorage.setItem(`budgets_${user?.id}`, JSON.stringify(updatedBudgets));
+
+    toast({
+      title: "Budget copied",
+      description: `"${originalBudget.name}" copied to "${copiedBudget.name}" for ${newMonth} ${newYear}.`,
     });
   };
 
@@ -180,6 +281,15 @@ export default function Dashboard() {
                                     <Edit className="h-4 w-4 mr-1" />
                                     Edit
                                   </Link>
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleCopyBudget(budget)} // New Copy button
+                                  className="text-primary hover:text-primary"
+                                >
+                                  <Copy className="h-4 w-4" />
+                                  Copy
                                 </Button>
                                 <Button 
                                   variant="outline" 
