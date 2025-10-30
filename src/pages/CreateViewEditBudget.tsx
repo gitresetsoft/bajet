@@ -5,50 +5,50 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calculator, ArrowLeft, Plus, X, Eye, Edit, Save, ChevronDown, ChevronRight, Trash2, Table, List } from "lucide-react";
+import { Calculator, ArrowLeft, Plus, X, Eye, Edit, Save, ChevronDown, ChevronRight, Trash2, Table, List, FileText } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { export2pdf as exportPdf } from "@/functions/export2pdf";
+import { Mode, ViewMode, CommitmentGroup, CommitmentItem, Budget } from '@/interface/Budget';
 
-interface CommitmentItem {
-  id: string;
-  name: string;
-  remark?: string;
-  amounts: Record<string, number>;
-  paidStatus: Record<string, boolean>;
+// Helper function to validate CommitmentItem
+const isValidCommitmentItem = (item: CommitmentItem): item is CommitmentItem => {
+  return (
+    item &&
+    typeof item.id === 'string' &&
+    typeof item.name === 'string' &&
+    typeof item.amounts === 'object' &&
+    item.amounts !== null &&
+    typeof item.paidStatus === 'object' &&
+    item.paidStatus !== null
+  );
+};
+
+// Helper function to validate CommitmentGroup
+const isValidCommitmentGroup = (group: CommitmentGroup): group is CommitmentGroup => {
+  return (
+    group &&
+    typeof group.id === 'string' &&
+    typeof group.name === 'string' &&
+    Array.isArray(group.items) &&
+    group.items.every(isValidCommitmentItem)
+  );
+};
+
+// Validate and filter valid commitment groups
+function getValidatedCommitmentGroups(commitments: CommitmentGroup[]): CommitmentGroup[] {
+  return (commitments || []).filter(isValidCommitmentGroup);
 }
-
-interface CommitmentGroup {
-  id: string;
-  name: string;
-  items: CommitmentItem[];
-  isExpanded?: boolean;
-}
-
-interface Budget {
-  id: string;
-  name: string;
-  month: string;
-  year: number;
-  members: string[];
-  commitments: CommitmentGroup[];
-  salaries: Record<string, number>;
-  totalCommitments: Record<string, number>;
-  balance: Record<string, number>;
-  createdAt: string;
-}
-
-type Mode = 'create' | 'view' | 'edit';
-type ViewMode = 'structured' | 'ledger';
 
 export default function CreateViewEditBudget() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { budgetId, mode: urlMode } = useParams<{ budgetId?: string; mode?: string }>();
-  
+
   // Determine the mode based on URL
   const mode: Mode = urlMode === 'edit' ? 'edit' : budgetId ? 'view' : 'create';
-  
+
   const [budgetName, setBudgetName] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toLocaleString('default', { month: 'long' }));
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -63,7 +63,6 @@ export default function CreateViewEditBudget() {
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
-
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear + i);
 
@@ -74,7 +73,6 @@ export default function CreateViewEditBudget() {
     const paidAmounts: Record<string, number> = {};
     const unpaidAmounts: Record<string, number> = {};
 
-    // Initialize totals for each member
     members.forEach(member => {
       totalCommitments[member] = 0;
       balance[member] = 0;
@@ -82,17 +80,14 @@ export default function CreateViewEditBudget() {
       unpaidAmounts[member] = 0;
     });
 
-    // Calculate total commitments and paid/unpaid amounts
     commitments.forEach(group => {
       group.items.forEach(item => {
         members.forEach(member => {
           const amount = item.amounts[member] || 0;
           totalCommitments[member] += amount;
-          
           if (!item.paidStatus) {
             item.paidStatus = { [member]: false };
           }
-
           if (item.paidStatus[member]) {
             paidAmounts[member] += amount;
           } else {
@@ -102,7 +97,6 @@ export default function CreateViewEditBudget() {
       });
     });
 
-    // Calculate balance
     members.forEach(member => {
       balance[member] = (salaries[member] || 0) - totalCommitments[member];
     });
@@ -119,7 +113,7 @@ export default function CreateViewEditBudget() {
       try {
         const savedBudgets = JSON.parse(localStorage.getItem(`budgets_${user?.id}`) || '[]');
         const budget = savedBudgets.find((b: Budget) => b.id === budgetId);
-        
+
         if (budget) {
           setBudgetName(budget.name);
           setSelectedMonth(budget.month);
@@ -152,8 +146,6 @@ export default function CreateViewEditBudget() {
     if (members.length < 2) {
       const newMemberName = '';
       setMembers([...members, newMemberName]);
-      
-      // Initialize paid status for existing commitment items for the new member
       setCommitments(prev => prev.map(group => ({
         ...group,
         items: group.items.map(item => ({
@@ -168,8 +160,6 @@ export default function CreateViewEditBudget() {
     if (members.length > 1) {
       const newMembers = members.filter((_, i) => i !== index);
       setMembers(newMembers);
-      
-      // Update commitments to remove the member's amounts and paid status
       setCommitments(prev => prev.map(group => ({
         ...group,
         items: group.items.map(item => {
@@ -188,8 +178,7 @@ export default function CreateViewEditBudget() {
     const oldName = updatedMembers[index];
     updatedMembers[index] = value;
     setMembers(updatedMembers);
-    
-    // Update commitments to rename the member's amounts and paid status
+
     if (oldName && oldName !== value) {
       setCommitments(prev => prev.map(group => ({
         ...group,
@@ -207,8 +196,6 @@ export default function CreateViewEditBudget() {
           return { ...item, amounts: newAmounts, paidStatus: newPaidStatus };
         })
       })));
-      
-      // Update salaries
       setSalaries(prev => {
         const newSalaries = { ...prev };
         if (newSalaries[oldName] !== undefined) {
@@ -231,7 +218,7 @@ export default function CreateViewEditBudget() {
   };
 
   const updateCommitmentGroup = (groupId: string, name: string) => {
-    setCommitments(prev => prev.map(group => 
+    setCommitments(prev => prev.map(group =>
       group.id === groupId ? { ...group, name } : group
     ));
   };
@@ -241,81 +228,80 @@ export default function CreateViewEditBudget() {
   };
 
   const toggleGroupExpansion = (groupId: string) => {
-    setCommitments(prev => prev.map(group => 
+    setCommitments(prev => prev.map(group =>
       group.id === groupId ? { ...group, isExpanded: !group.isExpanded } : group
     ));
   };
 
   const addCommitmentItem = (groupId: string) => {
-    // Initialize paid status for all current members
     const initialPaidStatus: Record<string, boolean> = {};
     members.forEach(member => {
       initialPaidStatus[member] = false;
     });
-    
+
     const newItem: CommitmentItem = {
       id: `item_${Date.now()}`,
       name: '',
       amounts: {},
       paidStatus: initialPaidStatus
     };
-    
-    setCommitments(prev => prev.map(group => 
-      group.id === groupId 
+
+    setCommitments(prev => prev.map(group =>
+      group.id === groupId
         ? { ...group, items: [...group.items, newItem] }
         : group
     ));
   };
 
   const updateCommitmentItem = (groupId: string, itemId: string, name: string, remark?: string) => {
-    setCommitments(prev => prev.map(group => 
-      group.id === groupId 
+    setCommitments(prev => prev.map(group =>
+      group.id === groupId
         ? {
-            ...group,
-            items: group.items.map(item => 
-              item.id === itemId ? { ...item, name, remark } : item
-            )
-          }
+          ...group,
+          items: group.items.map(item =>
+            item.id === itemId ? { ...item, name, remark } : item
+          )
+        }
         : group
     ));
   };
 
   const updateCommitmentAmount = (groupId: string, itemId: string, member: string, amount: number) => {
-    setCommitments(prev => prev.map(group => 
-      group.id === groupId 
+    setCommitments(prev => prev.map(group =>
+      group.id === groupId
         ? {
-            ...group,
-            items: group.items.map(item => 
-              item.id === itemId 
-                ? { 
-                    ...item, 
-                    amounts: { ...item.amounts, [member]: amount },
-                    paidStatus: { ...item.paidStatus, [member]: item.paidStatus[member] || false }
-                  }
-                : item
-            )
-          }
+          ...group,
+          items: group.items.map(item =>
+            item.id === itemId
+              ? {
+                ...item,
+                amounts: { ...item.amounts, [member]: amount },
+                paidStatus: { ...item.paidStatus, [member]: item.paidStatus[member] || false }
+              }
+              : item
+          )
+        }
         : group
     ));
   };
 
   const updateCommitmentPaidStatus = (groupId: string, itemId: string, member: string, isPaid: boolean) => {
-    setCommitments(prev => prev.map(group => 
-      group.id === groupId 
+    setCommitments(prev => prev.map(group =>
+      group.id === groupId
         ? {
-            ...group,
-            items: group.items.map(item => 
-              item.id === itemId 
-                ? { 
-                    ...item, 
-                    paidStatus: { 
-                      ...item.paidStatus, 
-                      [member]: isPaid 
-                    } 
-                  }
-                : item
-            )
-          }
+          ...group,
+          items: group.items.map(item =>
+            item.id === itemId
+              ? {
+                ...item,
+                paidStatus: {
+                  ...item.paidStatus,
+                  [member]: isPaid
+                }
+              }
+              : item
+          )
+        }
         : group
     ));
   };
@@ -332,8 +318,8 @@ export default function CreateViewEditBudget() {
   };
 
   const removeCommitmentItem = (groupId: string, itemId: string) => {
-    setCommitments(prev => prev.map(group => 
-      group.id === groupId 
+    setCommitments(prev => prev.map(group =>
+      group.id === groupId
         ? { ...group, items: group.items.filter(item => item.id !== itemId) }
         : group
     ));
@@ -345,7 +331,6 @@ export default function CreateViewEditBudget() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!budgetName.trim()) {
       toast({
         title: "Validation Error",
@@ -354,7 +339,6 @@ export default function CreateViewEditBudget() {
       });
       return;
     }
-
     if (members.some(member => !member.trim())) {
       toast({
         title: "Validation Error",
@@ -363,14 +347,10 @@ export default function CreateViewEditBudget() {
       });
       return;
     }
-
-    // Validate commitments
     const hasEmptyGroups = commitments.some(group => !group.name.trim());
-    const hasEmptyItems = commitments.some(group => 
+    const hasEmptyItems = commitments.some(group =>
       group.items.some(item => !item.name.trim())
     );
-
-    // TODO: Add the group/item name for reference
     if (hasEmptyGroups || hasEmptyItems) {
       toast({
         title: "Validation Error",
@@ -379,14 +359,12 @@ export default function CreateViewEditBudget() {
       });
       return;
     }
-
     setIsSubmitting(true);
 
     try {
       const existingBudgets = JSON.parse(localStorage.getItem(`budgets_${user?.id}`) || '[]');
-      
+
       if (mode === 'create') {
-        // Create new budget
         const newBudget: Budget = {
           id: `budget_${Date.now()}`,
           name: budgetName.trim(),
@@ -399,16 +377,13 @@ export default function CreateViewEditBudget() {
           balance,
           createdAt: new Date().toISOString(),
         };
-        
         const updatedBudgets = [...existingBudgets, newBudget];
         localStorage.setItem(`budgets_${user?.id}`, JSON.stringify(updatedBudgets));
-
         toast({
           title: "Budget created!",
           description: "Your new budget has been successfully created.",
         });
       } else if (mode === 'edit') {
-        // Update existing budget
         const budgetIndex = existingBudgets.findIndex((b: Budget) => b.id === budgetId);
         if (budgetIndex !== -1) {
           const updatedBudget: Budget = {
@@ -422,17 +397,14 @@ export default function CreateViewEditBudget() {
             totalCommitments,
             balance,
           };
-          
           existingBudgets[budgetIndex] = updatedBudget;
           localStorage.setItem(`budgets_${user?.id}`, JSON.stringify(existingBudgets));
-
           toast({
             title: "Budget updated!",
             description: "Your budget has been successfully updated.",
           });
         }
       }
-
       navigate('/dashboard');
     } catch (error) {
       toast({
@@ -495,19 +467,58 @@ export default function CreateViewEditBudget() {
     );
   }
 
+  // --- PDF Export handlers rewritten to correctly handle export2pdf contract ---
+  // See @/functions/export2pdf for argument expectations.
+  //
+  // - For handleExportPdf, only valid commitments are sent (filtered/validated).
+  // - Always supply required props title, month, year, members, commitments, salaries, totalCommitments, balance.
+  // - For summary or paid/unpaid, optionally supply paidAmounts, unpaidAmounts.
+  // - summaryType in the options is passed as-is.
+  // - Never pass unfiltered local commitments (must filter/validate with getValidatedCommitmentGroups).
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleExportPdf = (options: any) => {
+    const validCommitments = getValidatedCommitmentGroups(commitments);
+    exportPdf({
+      ...(options || {}),
+      title: budgetName,
+      month: selectedMonth,
+      year: selectedYear,
+      members,
+      commitments: validCommitments,
+      salaries,
+      totalCommitments,
+      balance,
+      summaryType: options && options.summaryType ? options.summaryType : "basic"
+    });
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleExportPdfSummary = (options: any) => {
+    const validCommitments = getValidatedCommitmentGroups(commitments);
+    exportPdf({
+      ...(options || {}),
+      title: budgetName,
+      month: selectedMonth,
+      year: selectedYear,
+      members,
+      commitments: validCommitments,
+      salaries,
+      totalCommitments,
+      balance,
+      paidAmounts,
+      unpaidAmounts,
+      summaryType: options && options.summaryType ? options.summaryType : "summary"
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" asChild>
-              <Link to="/dashboard">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Dashboard
-              </Link>
-            </Button>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 pr-5">
              <img src="/icon.png" alt="Budget Icon" className="h-8 w-8" />
                <h1 className="text-2xl font-bold text-foreground">{getPageTitle()}</h1>
             </div>
@@ -516,8 +527,17 @@ export default function CreateViewEditBudget() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        
+      <main className="container mx-auto px-4 py-4">
+         
+        <div className="bg-gradient-to-r from-blue-100 to-blue-50 rounded-md max-w-[180px]">
+          <Button variant="ghost" asChild>
+            <Link to="/dashboard">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Dashboard
+            </Link>
+          </Button>
+        </div>
+
         {/* Toggle Mode */}
         {mode === 'view' && (
           <div className="max-w-4xl mx-auto flex justify-end items-center space-x-2 pb-4">
@@ -548,14 +568,27 @@ export default function CreateViewEditBudget() {
           <div className="max-w-4xl mx-auto">
              {/* Ledger View */}
              <div className="bg-white border border-border rounded-lg overflow-hidden">
-               {/* Ledger Header */}
-              <div className="bg-muted px-4 py-3 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground flex justify-between items-center">
-                <span>{budgetName}</span>
-                <span>{selectedMonth} {selectedYear}</span>
-              </h2>
-
-              </div>
+               {/* Ledger Header (with PDF export button at top right) */}
+               <div className="bg-muted px-4 py-3 border-b border-border flex justify-between items-center">
+                 <h2 className="text-lg font-semibold text-foreground flex items-center">
+                   <span>{budgetName}</span>
+                   <span className="ml-4">{selectedMonth} {selectedYear}</span>
+                 </h2>
+                 <Button 
+                   type="button"
+                   variant="secondary"
+                   size="sm"
+                   onClick={() =>
+                     handleExportPdf({
+                       summaryType: "ledger"
+                     })
+                   }
+                   className="flex items-center space-x-2"
+                 >
+                   <FileText className="h-4 w-4 mr-1" />
+                   Export PDF
+                 </Button>
+               </div>
                
               {/* Ledger Table */}
               <div className="overflow-x-auto">
@@ -610,31 +643,29 @@ export default function CreateViewEditBudget() {
                      
                      {/* Summary Section */}
                      <tr className="bg-muted/50 border-t-2 border-border">
-                                                <td className="px-2 md:px-4 py-3 font-semibold text-foreground border-r border-border">
-                           Salary
-                         </td>
+                       <td className="px-2 md:px-4 py-3 font-semibold text-foreground border-r border-border">
+                         Salary
+                       </td>
                        {members.map((member) => (
                          <td key={member} className="px-2 md:px-4 py-3 text-right font-semibold text-foreground border-r border-border last:border-r-0">
                            RM {(salaries[member] || 0).toFixed(2)}
                          </td>
                        ))}
                      </tr>
-                     
                      <tr className="border-b border-border">
-                                                <td className="px-2 md:px-4 py-2 font-semibold text-foreground border-r border-border">
-                           Total Commitments
-                         </td>
+                       <td className="px-2 md:px-4 py-2 font-semibold text-foreground border-r border-border">
+                         Total Commitments
+                       </td>
                        {members.map((member) => (
                          <td key={member} className="px-2 md:px-4 py-2 text-right font-semibold text-destructive border-r border-border last:border-r-0">
                            RM {totalCommitments[member]?.toFixed(2) || '0.00'}
                          </td>
                        ))}
                      </tr>
-                     
                      <tr className="bg-muted/30 border-t-2 border-border">
-                                                <td className="px-2 md:px-4 py-3 font-bold text-foreground border-r border-border">
-                           Balance
-                         </td>
+                       <td className="px-2 md:px-4 py-3 font-bold text-foreground border-r border-border">
+                         Balance
+                       </td>
                        {members.map((member) => (
                          <td key={member} className={`px-2 md:px-4 py-3 text-right font-bold border-r border-border last:border-r-0 ${
                            balance[member] >= 0 ? 'text-success' : 'text-destructive'
@@ -666,10 +697,24 @@ export default function CreateViewEditBudget() {
           {/* Basic Information Card --------------------------------------------------------- */}
           <Card className="border-border">
             <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-              <CardDescription>
-                Set up the basic details of your budget.
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Basic Information</CardTitle>
+                  <CardDescription>
+                    Set up the basic details of your budget.
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleExportPdf({ summaryType: "basic" })}
+                  className="flex items-center space-x-2"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  Export PDF
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -774,6 +819,16 @@ export default function CreateViewEditBudget() {
                      Add your monthly commitments and expenses for each member.
                    </CardDescription>
                  </div>
+                 {/* <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleExportPdf({ summaryType: "commitments" })}
+                  className="flex items-center space-x-2"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  Export PDF
+                </Button> */}
                </div>
              </CardHeader>
              <CardContent>
@@ -833,7 +888,6 @@ export default function CreateViewEditBudget() {
                          {group.items.map((item, index) => (
                             <div key={item.id} className="space-y-2 shadow-md rounded-md p-2">
                               {/* Item Name Row */}
-
                               <div className="grid grid-cols-2 md:grid-cols-[35%_55%_10%] gap-4">
                                 <div>
                                   <Label>Item {index+1}:</Label>
@@ -845,7 +899,6 @@ export default function CreateViewEditBudget() {
                                     className="flex-1"
                                   />
                                 </div>
-                                
                                 <div>
                                   <Label>Remark:</Label>
                                   <Input
@@ -856,7 +909,6 @@ export default function CreateViewEditBudget() {
                                     className="flex-1"
                                   />
                                 </div>
-
                                 {mode !== 'view' && (
                                   <Button
                                     className="md:mt-6"
@@ -868,54 +920,51 @@ export default function CreateViewEditBudget() {
                                     <X className="h-4 w-4" />
                                   </Button>
                                 )}
-                                
-                                </div>
-                              
-                                {/* Member Amounts Row */}
-                                <div className="grid grid-cols-2 md:grid-cols-2 gap-4 pl-4">
-                                  {members.map((member) => (
-                                    <div key={member} className="flex items-center space-x-2">
-                                      <Label className="w-16 text-sm font-medium">{member ? member : 'Member 2'}:</Label>
-                                      <Input
-                                        type="number"
-                                        placeholder="0.00"
-                                        value={item.amounts[member] || ''}
-                                        onChange={(e) => updateCommitmentAmount(group.id, item.id, member, parseFloat(e.target.value) || 0)}
+                              </div>
+                              {/* Member Amounts Row */}
+                              <div className="grid grid-cols-2 md:grid-cols-2 gap-4 pl-4">
+                                {members.map((member) => (
+                                  <div key={member} className="flex items-center space-x-2">
+                                    <Label className="w-16 text-sm font-medium">{member ? member : 'Member 2'}:</Label>
+                                    <Input
+                                      type="number"
+                                      placeholder="0.00"
+                                      value={item.amounts[member] || ''}
+                                      onChange={(e) => updateCommitmentAmount(group.id, item.id, member, parseFloat(e.target.value) || 0)}
+                                      disabled={mode === 'view'}
+                                      className="flex-1 max-w-[120px]"
+                                      step="0.01"
+                                      min="0"
+                                    />
+                                    {/* Paid/Unpaid Toggle */}
+                                    <div className="flex items-center space-x-2">
+                                      <input
+                                        type="checkbox"
+                                        id={`paid-${item.id}-${member}`}
+                                        checked={ensurePaidStatusInitialized(item)[member] || false}
+                                        onChange={(e) => updateCommitmentPaidStatus(group.id, item.id, member, e.target.checked)}
                                         disabled={mode === 'view'}
-                                        className="flex-1 max-w-[120px]"
-                                        step="0.01"
-                                        min="0"
+                                        className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary focus:ring-2"
                                       />
-                                      {/* Paid/Unpaid Toggle */}
-                                      <div className="flex items-center space-x-2">
-                                        <input
-                                          type="checkbox"
-                                          id={`paid-${item.id}-${member}`}
-                                          checked={ensurePaidStatusInitialized(item)[member] || false}
-                                          onChange={(e) => updateCommitmentPaidStatus(group.id, item.id, member, e.target.checked)}
-                                          disabled={mode === 'view'}
-                                          className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary focus:ring-2"
-                                        />
-                                        <Label 
-                                          htmlFor={`paid-${item.id}-${member}`} 
-                                          className={`text-xs font-medium cursor-pointer w-10 ${
-                                            ensurePaidStatusInitialized(item)[member] ? 'text-green-600' : 'text-red-600'
-                                          }`}
-                                        >
-                                          {ensurePaidStatusInitialized(item)[member] ? 'PAID' : 'UNPAID'}
-                                        </Label>
-                                      </div>
+                                      <Label 
+                                        htmlFor={`paid-${item.id}-${member}`} 
+                                        className={`text-xs font-medium cursor-pointer w-10 ${
+                                          ensurePaidStatusInitialized(item)[member] ? 'text-green-600' : 'text-red-600'
+                                        }`}
+                                      >
+                                        {ensurePaidStatusInitialized(item)[member] ? 'PAID' : 'UNPAID'}
+                                      </Label>
                                     </div>
-                                  ))}
-                                </div>
-
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                          ))}
                        </div>
                      )}
                    </div>
                  ))}
- 
+
                 {mode !== 'view' && (
                    <Button type="button" variant="outline" size="sm" onClick={addCommitmentGroup}>
                      <Plus className="h-4 w-4 mr-2" />
@@ -935,10 +984,24 @@ export default function CreateViewEditBudget() {
           {/* Summary Card --------------------------------------------------------- */}
           <Card className="border-border">
             <CardHeader>
-              <CardTitle>Summary</CardTitle>
-              <CardDescription>
-                Overview of your budget totals.
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Summary</CardTitle>
+                  <CardDescription>
+                    Overview of your budget totals.
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleExportPdfSummary({ summaryType: "summary" })}
+                  className="flex items-center space-x-2"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  Export PDF
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4 grid grid-cols-2 md:grid-cols-1">
@@ -988,7 +1051,7 @@ export default function CreateViewEditBudget() {
                     <div key={member} className="md:min-w-[250px] flex items-center space-x-2">
                       <span className="text-sm text-muted-foreground">{member}:</span>
                       <span className="w-50 text-right font-medium text-destructive pl-2">
-                        RM {totalCommitments[member]?.toFixed(2) || '0.00'} 
+                        RM {totalCommitments[member]?.toFixed(2) || '0.00'}
                       </span>
                     </div>
                   ))}
