@@ -853,11 +853,14 @@ export default function CreateViewEditBudget() {
                          </Button>
                          <Input
                            placeholder="Group name (e.g., Rumah, Loan)"
-                           value={`${group.name} (${group.items.length})`}
+                           value={`${group.name}`}
                            onChange={(e) => updateCommitmentGroup(group.id, e.target.value)}
                            disabled={mode === 'view'}
                            className="w-48"
                          />
+                         <span className="text-sm text-muted-foreground">
+                          ({group.items.length})
+                         </span>
                        </div>
                        {mode !== 'view' && (
                          <div className="flex items-center space-x-2">

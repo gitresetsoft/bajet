@@ -157,8 +157,8 @@ export default function Dashboard() {
     });
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     toast({
       title: "Signed out",
       description: "You've been successfully signed out.",
