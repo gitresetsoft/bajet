@@ -6,6 +6,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { Calculator, Plus, Eye, Edit, Trash2, LogOut, Calendar, Copy } from "lucide-react"; // Added Copy icon
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { listBudgetsByUser, deleteBudget as deleteBudgetApi, createBudget } from '@/lib/budgetsApi';
 
 interface CommitmentItem {
   id: string;
@@ -29,9 +30,9 @@ interface Budget {
   members: string[];
   commitments: CommitmentGroup[];
   salaries: Record<string, number>;
-  totalCommitments: Record<string, number>;
+  total_commitments: Record<string, number>;
   balance: Record<string, number>;
-  createdAt: string;
+  created_at: string;
 }
 
 export default function Dashboard() {
@@ -45,12 +46,13 @@ export default function Dashboard() {
   ];
 
   useEffect(() => {
-    // Load user's budgets from localStorage
-    const savedBudgets = localStorage.getItem(`budgets_${user?.id}`);
-    if (savedBudgets) {
-      setBudgets(JSON.parse(savedBudgets));
-    }
-  }, [user?.id]);
+    if (!user?.id) return;
+    const email = (user as { email?: string } | null)?.email?.toLowerCase?.();
+    (async () => {
+      const data = await listBudgetsByUser(user.id, email);
+      setBudgets(data as unknown as Budget[]);
+    })();
+  }, [user]);
 
   // Helper function to calculate total commitments and balance for a budget
   const calculateBudgetTotals = (
@@ -82,17 +84,15 @@ export default function Dashboard() {
     return { totalCommitments, balance };
   };
 
-  const handleDeleteBudget = (budgetId: string) => {
-    const updatedBudgets = budgets.filter(budget => budget.id !== budgetId);
-    setBudgets(updatedBudgets);
-    localStorage.setItem(`budgets_${user?.id}`, JSON.stringify(updatedBudgets));
-    toast({
-      title: "Budget deleted",
-      description: "Budget has been successfully removed.",
-    });
+  const handleDeleteBudget = async (budgetId: string) => {
+    if (!user?.id) return;
+    await deleteBudgetApi(user.id, budgetId);
+    const updated = budgets.filter(b => b.id !== budgetId);
+    setBudgets(updated);
+    toast({ title: 'Budget deleted', description: 'Budget has been successfully removed.' });
   };
 
-  const handleCopyBudget = (originalBudget: Budget) => {
+  const handleCopyBudget = async (originalBudget: Budget) => {
     // 1. Determine the latest existing budget date among all budgets
     // We initialize with the originalBudget's date to ensure it's considered if it's the only or latest one.
     const latestBudget = budgets.reduce((latest, current) => {
@@ -124,8 +124,7 @@ export default function Dashboard() {
     }));
 
     // 4. Create new budget object
-    const newBudgetId = `budget_${Date.now()}`;
-    const newCreatedAt = new Date().toISOString();
+    // Persist via Supabase
 
     // Calculate derived totals for the new budget
     const { totalCommitments, balance } = calculateBudgetTotals(
@@ -133,27 +132,24 @@ export default function Dashboard() {
       newCommitments,
       originalBudget.salaries
     );
-
-    const copiedBudget: Budget = {
-      ...originalBudget,
-      id: newBudgetId,
-      name: `${originalBudget.month} ${originalBudget.year} (Copy)`, // Suggest a new name based on the original budget's name
-      month: newMonth, // Use the newly calculated month (incremented from the latest existing budget)
-      year: newYear,   // Use the newly calculated year (incremented from the latest existing budget)
+    if (!user?.id) return;
+    const created = await createBudget(user.id, {
+      name: `${originalBudget.month} ${originalBudget.year} (Copy)`,
+      month: newMonth,
+      year: newYear,
+      members: originalBudget.members,
+      member_emails: originalBudget.members.filter(m => /.+@.+\..+/.test(m)).map(m => m.toLowerCase()),
       commitments: newCommitments,
-      totalCommitments, // Recalculated
-      balance, // Recalculated
-      createdAt: newCreatedAt,
-    };
+      salaries: originalBudget.salaries,
+      total_commitments: totalCommitments,
+      balance,
+    });
 
-    // 5. Save the new budget
-    const updatedBudgets = [...budgets, copiedBudget];
-    setBudgets(updatedBudgets);
-    localStorage.setItem(`budgets_${user?.id}`, JSON.stringify(updatedBudgets));
+    setBudgets(prev => [created as unknown as Budget, ...prev]);
 
     toast({
-      title: "Budget copied",
-      description: `"${originalBudget.name}" copied to "${copiedBudget.name}" for ${newMonth} ${newYear}.`,
+      title: 'Budget copied',
+      description: `"${originalBudget.name}" copied to "${created.name}" for ${newMonth} ${newYear}.`,
     });
   };
 
@@ -258,7 +254,7 @@ export default function Dashboard() {
                                 <div className="flex justify-between text-sm">
                                   <span className="text-muted-foreground">Commitments:</span>
                                   <span className="font-medium text-destructive">
-                                    RM {Object.values(budget.totalCommitments || {}).reduce((sum, commitment) => sum + commitment, 0).toLocaleString()}
+                                    RM {Object.values(budget.total_commitments || {}).reduce((sum: number, commitment: number) => sum + commitment, 0).toLocaleString()}
                                   </span>
                                 </div>
                                 <div className="flex justify-between text-sm font-medium pt-2 border-t border-border">

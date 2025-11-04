@@ -9,6 +9,7 @@ import { Calculator, ArrowLeft, Plus, X, Eye, Edit, Save, ChevronDown, ChevronRi
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { export2pdf as exportPdf } from "@/functions/export2pdf";
+import { createBudget, getBudgetById, updateBudget } from '@/lib/budgetsApi';
 import { Mode, ViewMode, CommitmentGroup, CommitmentItem, Budget } from '@/interface/Budget';
 
 // Helper function to validate CommitmentItem
@@ -52,7 +53,7 @@ export default function CreateViewEditBudget() {
   const [budgetName, setBudgetName] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toLocaleString('default', { month: 'long' }));
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [members, setMembers] = useState([user?.name || '']);
+  const [members, setMembers] = useState([user?.email || user?.name || '']);
   const [commitments, setCommitments] = useState<CommitmentGroup[]>([]);
   const [salaries, setSalaries] = useState<Record<string, number>>({});
   const [viewMode, setViewMode] = useState<ViewMode>('structured');
@@ -106,39 +107,40 @@ export default function CreateViewEditBudget() {
 
   const { totalCommitments, balance, paidAmounts, unpaidAmounts } = calculateTotals();
 
-  // Load budget data for view/edit modes
+  // Load budget data for view/edit modes (Supabase)
   useEffect(() => {
+    if (!user?.id) return;
     if (mode === 'view' || mode === 'edit') {
       setIsLoading(true);
-      try {
-        const savedBudgets = JSON.parse(localStorage.getItem(`budgets_${user?.id}`) || '[]');
-        const budget = savedBudgets.find((b: Budget) => b.id === budgetId);
-
-        if (budget) {
-          setBudgetName(budget.name);
-          setSelectedMonth(budget.month);
-          setSelectedYear(budget.year);
-          setMembers(budget.members);
-          setCommitments(budget.commitments || []);
-          setSalaries(budget.salaries || {});
-        } else {
+      (async () => {
+        try {
+          const data = await getBudgetById(user.id, budgetId as string);
+          if (data) {
+            setBudgetName(data.name);
+            setSelectedMonth(data.month);
+            setSelectedYear(data.year);
+            setMembers(data.members);
+            setCommitments(data.commitments || []);
+            setSalaries(data.salaries || {});
+          } else {
+            toast({
+              title: 'Budget not found',
+              description: 'The requested budget could not be found.',
+              variant: 'destructive',
+            });
+            navigate('/dashboard');
+          }
+        } catch (error) {
           toast({
-            title: "Budget not found",
-            description: "The requested budget could not be found.",
-            variant: "destructive",
+            title: 'Error',
+            description: 'Failed to load budget data.',
+            variant: 'destructive',
           });
           navigate('/dashboard');
+        } finally {
+          setIsLoading(false);
         }
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load budget data.",
-          variant: "destructive",
-        });
-        navigate('/dashboard');
-      } finally {
-        setIsLoading(false);
-      }
+      })();
     }
   }, [budgetId, mode, user?.id, navigate, toast]);
 
@@ -362,48 +364,44 @@ export default function CreateViewEditBudget() {
     setIsSubmitting(true);
 
     try {
-      const existingBudgets = JSON.parse(localStorage.getItem(`budgets_${user?.id}`) || '[]');
+      if (!user?.id) throw new Error('No user');
+
+      const memberEmails = members
+        .map(m => (m || '').trim().toLowerCase())
+        .filter(m => /.+@.+\..+/.test(m));
 
       if (mode === 'create') {
-        const newBudget: Budget = {
-          id: `budget_${Date.now()}`,
+        await createBudget(user.id, {
           name: budgetName.trim(),
           month: selectedMonth,
           year: selectedYear,
           members: members.filter(member => member.trim()),
+          member_emails: memberEmails,
           commitments: commitments.filter(group => group.name.trim()),
           salaries,
-          totalCommitments,
+          total_commitments: totalCommitments,
           balance,
-          createdAt: new Date().toISOString(),
-        };
-        const updatedBudgets = [...existingBudgets, newBudget];
-        localStorage.setItem(`budgets_${user?.id}`, JSON.stringify(updatedBudgets));
+        });
         toast({
-          title: "Budget created!",
-          description: "Your new budget has been successfully created.",
+          title: 'Budget created!',
+          description: 'Your new budget has been successfully created.',
         });
       } else if (mode === 'edit') {
-        const budgetIndex = existingBudgets.findIndex((b: Budget) => b.id === budgetId);
-        if (budgetIndex !== -1) {
-          const updatedBudget: Budget = {
-            ...existingBudgets[budgetIndex],
-            name: budgetName.trim(),
-            month: selectedMonth,
-            year: selectedYear,
-            members: members.filter(member => member.trim()),
-            commitments: commitments.filter(group => group.name.trim()),
-            salaries,
-            totalCommitments,
-            balance,
-          };
-          existingBudgets[budgetIndex] = updatedBudget;
-          localStorage.setItem(`budgets_${user?.id}`, JSON.stringify(existingBudgets));
-          toast({
-            title: "Budget updated!",
-            description: "Your budget has been successfully updated.",
-          });
-        }
+        await updateBudget(user.id, budgetId as string, {
+          name: budgetName.trim(),
+          month: selectedMonth,
+          year: selectedYear,
+          members: members.filter(member => member.trim()),
+          member_emails: memberEmails,
+          commitments: commitments.filter(group => group.name.trim()),
+          salaries,
+          total_commitments: totalCommitments,
+          balance,
+        });
+        toast({
+          title: 'Budget updated!',
+          description: 'Your budget has been successfully updated.',
+        });
       }
       navigate('/dashboard');
     } catch (error) {
@@ -416,6 +414,11 @@ export default function CreateViewEditBudget() {
       setIsSubmitting(false);
     }
   };
+
+  // Archived: previous localStorage implementation (kept for reference)
+  // NOTE: This code path is no longer used. All CRUD is now performed via Supabase.
+  // const savedBudgets = JSON.parse(localStorage.getItem(`budgets_${user?.id}`) || '[]');
+  // setBudgets(savedBudgets);
 
   const getPageTitle = () => {
     switch (mode) {
