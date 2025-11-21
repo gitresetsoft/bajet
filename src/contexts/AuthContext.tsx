@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { setSentryUser } from '@/lib/sentry';
 
 interface User {
   id: string;
@@ -63,11 +64,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const { data: { session }, error } = await supabase.auth.getSession();
             
             if (session && !error) {
-              setUser(transformSupabaseUser(session.user));
+              const user = transformSupabaseUser(session.user);
+              setUser(user);
+              setSentryUser(user);
             } else {
               // Session expired or invalid, clear it
               localStorage.removeItem('budget_session');
               setUser(null);
+              setSentryUser(null);
             }
           } catch (parseError) {
             // Invalid session data, clear it
@@ -79,10 +83,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const { data: { session }, error } = await supabase.auth.getSession();
           
           if (session && !error) {
-            setUser(transformSupabaseUser(session.user));
+            const user = transformSupabaseUser(session.user);
+            setUser(user);
+            setSentryUser(user);
             saveSessionToStorage(session);
           } else {
             setUser(null);
+            setSentryUser(null);
           }
         }
       } catch (error) {
@@ -99,10 +106,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session) {
-          setUser(transformSupabaseUser(session.user));
+          const user = transformSupabaseUser(session.user);
+          setUser(user);
+          setSentryUser(user);
           saveSessionToStorage(session);
         } else {
           setUser(null);
+          setSentryUser(null);
           localStorage.removeItem('budget_session');
         }
         setIsLoading(false);
@@ -130,7 +140,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.session && data.user) {
-        setUser(transformSupabaseUser(data.user));
+        const user = transformSupabaseUser(data.user);
+        setUser(user);
+        setSentryUser(user);
         saveSessionToStorage(data.session);
         setIsLoading(false);
         return true;
@@ -168,7 +180,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // If email confirmation is required, Supabase won't create a session immediately
       // In that case, we need to check if session exists
       if (data.session && data.user) {
-        setUser(transformSupabaseUser(data.user));
+        const user = transformSupabaseUser(data.user);
+        setUser(user);
+        setSentryUser(user);
         saveSessionToStorage(data.session);
         setIsLoading(false);
         return { success: true };
@@ -196,11 +210,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       // Clear user state and localStorage
       setUser(null);
+      setSentryUser(null);
       localStorage.removeItem('budget_session');
     } catch (error) {
       console.error('Unexpected logout error:', error);
       // Still clear local state even if there's an error
       setUser(null);
+      setSentryUser(null);
       localStorage.removeItem('budget_session');
     } finally {
       setIsLoading(false);

@@ -11,6 +11,17 @@ import { useToast } from "@/hooks/use-toast";
 import { export2pdf as exportPdf } from "@/functions/export2pdf";
 import { createBudget, getBudgetById, updateBudget } from '@/lib/budgetsApi';
 import { Mode, ViewMode, CommitmentGroup, CommitmentItem, Budget } from '@/interface/Budget';
+import { 
+  isValidBudgetName, 
+  isValidMemberName, 
+  isValidCommitmentName,
+  isValidAmount,
+  sanitizeAmount,
+  sanitizeString,
+  isValidMonth,
+  isValidYear
+} from '@/lib/validation';
+import { logError } from '@/lib/errorHandler';
 
 // Helper function to validate CommitmentItem
 const isValidCommitmentItem = (item: CommitmentItem): item is CommitmentItem => {
@@ -269,6 +280,9 @@ export default function CreateViewEditBudget() {
   };
 
   const updateCommitmentAmount = (groupId: string, itemId: string, member: string, amount: number) => {
+    const sanitizedAmount = sanitizeAmount(amount);
+    const sanitizedMember = sanitizeString(member);
+    
     setCommitments(prev => prev.map(group =>
       group.id === groupId
         ? {
@@ -277,8 +291,8 @@ export default function CreateViewEditBudget() {
             item.id === itemId
               ? {
                 ...item,
-                amounts: { ...item.amounts, [member]: amount },
-                paidStatus: { ...item.paidStatus, [member]: item.paidStatus[member] || false }
+                amounts: { ...item.amounts, [sanitizedMember]: sanitizedAmount },
+                paidStatus: { ...item.paidStatus, [sanitizedMember]: item.paidStatus[sanitizedMember] || false }
               }
               : item
           )
@@ -328,76 +342,146 @@ export default function CreateViewEditBudget() {
   };
 
   const updateSalary = (member: string, salary: number) => {
-    setSalaries(prev => ({ ...prev, [member]: salary }));
+    const sanitizedAmount = sanitizeAmount(salary);
+    const sanitizedMember = sanitizeString(member);
+    setSalaries(prev => ({ ...prev, [sanitizedMember]: sanitizedAmount }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!budgetName.trim()) {
+    
+    // Validate budget name
+    const sanitizedBudgetName = sanitizeString(budgetName);
+    if (!isValidBudgetName(sanitizedBudgetName)) {
       toast({
         title: "Validation Error",
-        description: "Please enter a budget name.",
+        description: "Please enter a valid budget name (1-100 characters).",
         variant: "destructive",
       });
       return;
     }
-    if (members.some(member => !member.trim())) {
+
+    // Validate month and year
+    if (!isValidMonth(selectedMonth)) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all member names.",
+        description: "Please select a valid month.",
         variant: "destructive",
       });
       return;
     }
-    const hasEmptyGroups = commitments.some(group => !group.name.trim());
+
+    if (!isValidYear(selectedYear)) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a valid year.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate members
+    if (members.some(member => !isValidMemberName(member))) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all member names or emails (1-50 characters).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate commitment groups and items
+    const hasEmptyGroups = commitments.some(group => !isValidCommitmentName(group.name));
     const hasEmptyItems = commitments.some(group =>
-      group.items.some(item => !item.name.trim())
+      group.items.some(item => !isValidCommitmentName(item.name))
     );
     if (hasEmptyGroups || hasEmptyItems) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all commitment group and item names.",
+        description: "Please fill in all commitment group and item names (1-100 characters).",
         variant: "destructive",
       });
       return;
     }
+
+    // Validate amounts
+    const invalidAmounts = commitments.some(group =>
+      group.items.some(item =>
+        Object.values(item.amounts).some(amount => !isValidAmount(amount))
+      )
+    );
+    if (invalidAmounts) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter valid amounts (0 to 999,999,999.99).",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       if (!user?.id) throw new Error('No user');
 
-      const memberEmails = members
-        .map(m => (m || '').trim().toLowerCase())
+      // Sanitize and prepare data
+      const sanitizedMembers = members
+        .map(m => sanitizeString(m))
+        .filter(m => m.length > 0);
+      
+      const memberEmails = sanitizedMembers
+        .map(m => m.trim().toLowerCase())
         .filter(m => /.+@.+\..+/.test(m));
 
+      // Sanitize commitments
+      const sanitizedCommitments = commitments
+        .filter(group => isValidCommitmentName(group.name))
+        .map(group => ({
+          ...group,
+          name: sanitizeString(group.name),
+          items: group.items
+            .filter(item => isValidCommitmentName(item.name))
+            .map(item => ({
+              ...item,
+              name: sanitizeString(item.name),
+              remark: item.remark ? sanitizeString(item.remark) : undefined,
+              amounts: Object.fromEntries(
+                Object.entries(item.amounts).map(([key, value]) => [
+                  sanitizeString(key),
+                  sanitizeAmount(value)
+                ])
+              ),
+            })),
+        }));
+
+      // Sanitize salaries
+      const sanitizedSalaries = Object.fromEntries(
+        Object.entries(salaries).map(([key, value]) => [
+          sanitizeString(key),
+          sanitizeAmount(value)
+        ])
+      );
+
+      const budgetData = {
+        name: sanitizedBudgetName,
+        month: selectedMonth,
+        year: selectedYear,
+        members: sanitizedMembers,
+        member_emails: memberEmails,
+        commitments: sanitizedCommitments,
+        salaries: sanitizedSalaries,
+        total_commitments: totalCommitments,
+        balance,
+      };
+
       if (mode === 'create') {
-        await createBudget(user.id, {
-          name: budgetName.trim(),
-          month: selectedMonth,
-          year: selectedYear,
-          members: members.filter(member => member.trim()),
-          member_emails: memberEmails,
-          commitments: commitments.filter(group => group.name.trim()),
-          salaries,
-          total_commitments: totalCommitments,
-          balance,
-        });
+        await createBudget(user.id, budgetData);
         toast({
           title: 'Budget created!',
           description: 'Your new budget has been successfully created.',
         });
       } else if (mode === 'edit') {
-        await updateBudget(user.id, budgetId as string, {
-          name: budgetName.trim(),
-          month: selectedMonth,
-          year: selectedYear,
-          members: members.filter(member => member.trim()),
-          member_emails: memberEmails,
-          commitments: commitments.filter(group => group.name.trim()),
-          salaries,
-          total_commitments: totalCommitments,
-          balance,
-        });
+        await updateBudget(user.id, budgetId as string, budgetData);
         toast({
           title: 'Budget updated!',
           description: 'Your budget has been successfully updated.',
@@ -405,6 +489,11 @@ export default function CreateViewEditBudget() {
       }
       navigate('/dashboard');
     } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logError(err, {
+        userId: user?.id,
+        userEmail: user?.email,
+      });
       toast({
         title: "Error",
         description: mode === 'create' ? "Failed to create budget. Please try again." : "Failed to update budget. Please try again.",
@@ -931,7 +1020,9 @@ export default function CreateViewEditBudget() {
                               <div className="grid grid-cols-2 md:grid-cols-2 gap-4 pl-4">
                                 {members.map((member) => (
                                   <div key={member} className="flex items-center space-x-2">
-                                    <Label className="w-16 text-sm font-medium">{member ? member : 'Member 2'}:</Label>
+                                    <Label className="max-w-24 text-sm font-medium">
+                                      {member ? member.split('@')[0] : 'Member 2'}:
+                                    </Label>
                                     <Input
                                       type="number"
                                       placeholder="0.00"
@@ -1016,7 +1107,7 @@ export default function CreateViewEditBudget() {
                   <Label className="w-32 font-medium">Salary:</Label>
                   {members.map((member) => (
                     <div key={member} className="md:min-w-[250px] flex items-center space-x-2">
-                      <span className="text-sm text-muted-foreground">{member}:</span>
+                      <span className="text-sm text-muted-foreground">{member.split('@')[0] }:</span>
                       <Input
                         type="number"
                         placeholder="0.00"
@@ -1036,7 +1127,7 @@ export default function CreateViewEditBudget() {
                   <Label className="w-32 font-medium">Paid / Unpaid:</Label>
                   {members.map((member) => (
                     <div key={member} className="md:min-w-[250px] flex items-center space-x-2">
-                      <span className="text-sm text-muted-foreground">{member}:</span>
+                      <span className="text-sm text-muted-foreground">{member.split('@')[0] }:</span>
                       <span className="md:w-30 text-right pl-2">
                         <span className="text-green-600 font-medium">
                           RM {(paidAmounts[member] || 0).toFixed(2)}
@@ -1055,7 +1146,7 @@ export default function CreateViewEditBudget() {
                   <Label className="w-32 font-medium">Total Commitments:</Label>
                   {members.map((member) => (
                     <div key={member} className="md:min-w-[250px] flex items-center space-x-2">
-                      <span className="text-sm text-muted-foreground">{member}:</span>
+                      <span className="text-sm text-muted-foreground">{member.split('@')[0] }:</span>
                       <span className="w-50 text-right font-medium text-destructive pl-2">
                         RM {totalCommitments[member]?.toFixed(2) || '0.00'}
                       </span>
@@ -1068,7 +1159,7 @@ export default function CreateViewEditBudget() {
                   <Label className="w-32 font-medium">Balance:</Label>
                   {members.map((member) => (
                     <div key={member} className="md:min-w-[250px] flex items-center space-x-2">
-                      <span className="text-sm text-muted-foreground">{member}:</span>
+                      <span className="text-sm text-muted-foreground">{member.split('@')[0] }:</span>
                       <span className={`w-24 text-right font-bold ${balance[member] >= 0 ? 'text-success' : 'text-destructive'}`}>
                         RM {balance[member]?.toFixed(2) || '0.00'}
                       </span>

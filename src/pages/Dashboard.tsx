@@ -240,7 +240,7 @@ export default function Dashboard() {
                                 </span>
                               </CardTitle>
                               <CardDescription>
-                                {budget.members.join(' & ')}
+                                {budget.members.map(m => m.split('@')[0]).join(' & ')}
                               </CardDescription>
                             </CardHeader>
                             <CardContent>
