@@ -219,14 +219,18 @@ export default function Dashboard() {
                   (acc[budget.year] = acc[budget.year] || []).push(budget)
                   return acc
                 }, {} as Record<string, typeof budgets>)
-              ).map(([year, yearBudgets], index) => (
+              )
+              // Sort by year descending (latest year first)
+              .sort(([aYear], [bYear]) => Number(bYear) - Number(aYear))
+              .map(([year, yearBudgets], index) => (
                 <Accordion key={year} 
                 type="single" collapsible
                 defaultValue={index === 0 ? year : undefined}
                 >
                   <AccordionItem value={year}>
-                    <AccordionTrigger className="text-lg font-semibold">
-                      {year}
+                    <AccordionTrigger className="text-lg font-semibold flex items-center justify-between">
+                      <span className="text-left">{year}</span>
+                      <span className="text-muted-foreground flex-1 text-end pr-2">{yearBudgets.length}</span>
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-4">
