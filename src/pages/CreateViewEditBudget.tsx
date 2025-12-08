@@ -581,7 +581,9 @@ export default function CreateViewEditBudget() {
       salaries,
       totalCommitments,
       balance,
-      summaryType: options && options.summaryType ? options.summaryType : "basic"
+      summaryType: options && options.summaryType ? options.summaryType : "basic",
+      userEmail: user?.email,
+      userName: user?.name,
     });
   };
 
@@ -600,7 +602,9 @@ export default function CreateViewEditBudget() {
       balance,
       paidAmounts,
       unpaidAmounts,
-      summaryType: options && options.summaryType ? options.summaryType : "summary"
+      summaryType: options && options.summaryType ? options.summaryType : "summary",
+      userEmail: user?.email,
+      userName: user?.name,
     });
   };
 
@@ -632,27 +636,42 @@ export default function CreateViewEditBudget() {
 
         {/* Toggle Mode */}
         {mode === 'view' && (
-          <div className="max-w-4xl mx-auto flex justify-end items-center space-x-2 pb-4">
-            <span className="hidden md:inline text-sm text-muted-foreground">View Mode:</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setViewMode(viewMode === 'structured' ? 'ledger' : 'structured')}
-              className="flex items-center space-x-2"
-            >
-              {viewMode === 'structured' ? (
-                <>
-                  <List className="h-4 w-4" />
-                  <span className="hidden md:inline">Structured</span>
-                </>
-              ) : (
-                <>
-                  <Table className="h-4 w-4" />
-                  <span className="hidden md:inline">Ledger View</span>
-                </>
-              )}
-            </Button>
+          <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-start justify-between py-4">
+            <div className="flex items-center space-x-2 mb-2 md:mb-0">
+              <span className="hidden md:inline text-sm text-muted-foreground">View Mode:</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setViewMode(viewMode === 'structured' ? 'ledger' : 'structured')}
+                className="flex items-center space-x-2"
+              >
+                {viewMode === 'structured' ? (
+                  <>
+                    <List className="h-4 w-4" />
+                    <span className="hidden md:inline">Structured</span>
+                  </>
+                ) : (
+                  <>
+                    <Table className="h-4 w-4" />
+                    <span className="hidden md:inline">Ledger View</span>
+                  </>
+                )}
+              </Button>
+            </div>
+            {/* Export PDF for Ledger View */}
+            {viewMode === 'ledger' && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => handleExportPdf({ summaryType: "ledger" })}
+                className="flex items-center space-x-2"
+              >
+                <FileText className="h-4 w-4 mr-1" />
+                Export Ledger PDF
+              </Button>
+            )}
           </div>
         )}
         
@@ -660,26 +679,12 @@ export default function CreateViewEditBudget() {
           <div className="max-w-4xl mx-auto">
              {/* Ledger View */}
              <div className="bg-white border border-border rounded-lg overflow-hidden">
-               {/* Ledger Header (with PDF export button at top right) */}
+               {/* Ledger Header (PDF export button REMOVED from here) */}
                <div className="bg-muted px-4 py-3 border-b border-border flex justify-between items-center">
                  <h2 className="text-lg font-semibold text-foreground flex items-center">
                    <span>{budgetName}</span>
                    <span className="ml-4">{selectedMonth} {selectedYear}</span>
                  </h2>
-                 <Button 
-                   type="button"
-                   variant="secondary"
-                   size="sm"
-                   onClick={() =>
-                     handleExportPdf({
-                       summaryType: "ledger"
-                     })
-                   }
-                   className="flex items-center space-x-2"
-                 >
-                   <FileText className="h-4 w-4 mr-1" />
-                   Export PDF
-                 </Button>
                </div>
                
               {/* Ledger Table */}
@@ -693,7 +698,7 @@ export default function CreateViewEditBudget() {
                          </th>
                        {members.map((member) => (
                          <th key={member} className="text-right px-2 md:px-4 py-2 font-medium text-foreground border-r border-border last:border-r-0">
-                           {member}
+                           {member.split('@')[0]}
                          </th>
                        ))}
                      </tr>
@@ -718,6 +723,12 @@ export default function CreateViewEditBudget() {
                            <tr key={item.id} className="border-b border-border hover:bg-muted/20">
                              <td className="px-3 md:px-6 py-2 text-foreground border-r border-border">
                                {item.name}
+                               {item.remark && typeof item.remark === 'string' && item.remark.trim() !== '' && (
+                                 <>
+                                   <br />
+                                   <span className="text-xs text-muted-foreground whitespace-pre-line">{item.remark}</span>
+                                 </>
+                               )}
                              </td>
                              {members.map((member) => (
                                <td key={member} className="px-2 md:px-4 py-2 text-right border-r border-border last:border-r-0">
@@ -732,7 +743,6 @@ export default function CreateViewEditBudget() {
                          ))}
                        </React.Fragment>
                      ))}
-                     
                      {/* Summary Section */}
                      <tr className="bg-muted/50 border-t-2 border-border">
                        <td className="px-2 md:px-4 py-3 font-semibold text-foreground border-r border-border">

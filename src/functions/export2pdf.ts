@@ -40,7 +40,9 @@ function isCommitmentGroup(obj: CommitmentGroup): obj is CommitmentGroup {
  *      salaries: Record<string, number>,
  *      totalCommitments: Record<string, number>,
  *      balance: Record<string, number>,
- *      summaryType?: string
+ *      summaryType?: string,
+ *      userEmail?: string,
+ *      userName?: string
  *    }
  */
 export function export2pdf(params: {
@@ -53,6 +55,8 @@ export function export2pdf(params: {
   totalCommitments: Record<string, number>,
   balance: Record<string, number>,
   summaryType?: string,
+  userEmail?: string,
+  userName?: string,
 }) {
   const {
     title,
@@ -63,6 +67,8 @@ export function export2pdf(params: {
     salaries,
     totalCommitments,
     balance,
+    userEmail,
+    userName,
   } = params;
 
   // Validate commitments array
@@ -144,6 +150,53 @@ export function export2pdf(params: {
     headStyles: { fillColor: [220, 230, 241] },
     tableLineColor: [180, 180, 180],
   });
+
+  // Get final Y position after table
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tableEndY = (doc as any).lastAutoTable?.finalY || doc.internal.pageSize.getHeight() - 40;
+
+  // Format date/time in GMT+8 (Asia/Singapore timezone)
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", { 
+    year: "numeric", 
+    month: "2-digit", 
+    day: "2-digit",
+    timeZone: "Asia/Singapore"
+  });
+  const timeStr = now.toLocaleTimeString("en-US", { 
+    hour: "2-digit", 
+    minute: "2-digit", 
+    second: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Singapore"
+  });
+  const dateTimeStr = `${dateStr} ${timeStr} GMT+8`;
+
+  // Get user identifier (email or username)
+  const userIdentifier = userEmail || userName || "Unknown User";
+
+  // Get VITE_URL from environment
+  const viteUrl = import.meta.env.VITE_URL || "";
+
+  // Add footer lines (right-aligned)
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 40;
+  const fontSize = 9;
+  const lineHeight = 12;
+  
+  doc.setFontSize(fontSize);
+  doc.setTextColor(100, 100, 100);
+  
+  // First line: "Printed by {user} at {date, time, GMT+8}"
+  const footerLine1 = `Printed by ${userIdentifier} at ${dateTimeStr}`;
+  const footerLine1Width = doc.getTextWidth(footerLine1);
+  doc.text(footerLine1, pageWidth - margin - footerLine1Width, tableEndY + 20);
+  
+  // Second line: VITE_URL
+  if (viteUrl) {
+    const footerLine2Width = doc.getTextWidth(viteUrl);
+    doc.text(viteUrl, pageWidth - margin - footerLine2Width, tableEndY + 20 + lineHeight);
+  }
 
   // Save
   const filename = `${title ? title.replace(/\s+/g, "_") : "budget"}_ledger_${month}_${year}.pdf`;
