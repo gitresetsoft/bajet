@@ -1,9 +1,27 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Calculator, PieChart, Users, Shield, TrendingUp, CheckCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAppStore } from "@/hooks/use-appstore";
+import { useCallback } from "react";
 
 export default function Landing() {
+  const userDetails = useAppStore((state) => state.userDetails);
+  const navigate = useNavigate();
+
+  // Single redirect handler for /login in all places
+  const handleLoginOrDashboard = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      if (userDetails) {
+        navigate("/dashboard");
+      } else {
+        navigate("/login");
+      }
+    },
+    [userDetails, navigate]
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
       {/* Header */}
@@ -14,11 +32,8 @@ export default function Landing() {
             <span className="text-2xl font-bold text-foreground">Bajet</span>
           </div>
           <div className="space-x-4">
-            {/* <Button variant="ghost" asChild>
-              <Link to="/login">Sign In</Link>
-            </Button> */}
-            <Button asChild>
-              <Link to="/login">Let's start!</Link>
+            <Button onClick={handleLoginOrDashboard}>
+              Let's start!
             </Button>
           </div>
         </nav>
@@ -35,15 +50,10 @@ export default function Landing() {
           and powerful budget tracking platform designed for individuals and couples.
         </p>
         <div className="space-x-4">
-          <Button size="lg" className="text-lg px-8 py-6" asChild>
-            <Link to="/login">
-              Start Tracking Now
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
+          <Button size="lg" className="text-lg px-8 py-6" onClick={handleLoginOrDashboard}>
+            Start Tracking Now
+            <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
-          {/* <Button variant="outline" size="lg" className="text-lg px-8 py-6">
-            Watch Demo
-          </Button> */}
         </div>
       </section>
 

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Calculator, Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAppStore } from "@/hooks/use-appstore";
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -17,6 +18,8 @@ export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const setUserDetails = useAppStore((state) => state.setUserDetails);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -24,10 +27,26 @@ export default function Login() {
     try {
       const success = await login(email, password);
       if (success) {
+        const { data, error } = await import("@/lib/supabase").then(m => m.supabase.auth.getUser());
+        if (data?.user) {
+          const u = data.user;
+          setUserDetails({
+            id: u.id,
+            email: u.email ?? '',
+            name:
+              (u.user_metadata?.name as string | undefined) ||
+              u.email?.split('@')[0] ||
+              "User",
+          });
+        } else {
+          setUserDetails(null);
+        }
+
         toast({
           title: "Welcome back!",
           description: "You've been successfully logged in.",
         });
+
         navigate('/dashboard');
       } else {
         toast({
