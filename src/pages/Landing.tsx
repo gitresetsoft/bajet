@@ -4,10 +4,13 @@ import { ArrowRight, Calculator, PieChart, Users, Shield, TrendingUp, CheckCircl
 import { Link, useNavigate } from "react-router-dom";
 import { useAppStore } from "@/hooks/use-appstore";
 import { useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext"; // Add this import
 
 export default function Landing() {
   const userDetails = useAppStore((state) => state.userDetails);
+  const setUserDetails = useAppStore((state) => state.setUserDetails); // Access setter
   const navigate = useNavigate();
+  const { logout } = useAuth(); // Access AuthContext logout
 
   // Single redirect handler for /login in all places
   const handleLoginOrDashboard = useCallback(
@@ -22,6 +25,17 @@ export default function Landing() {
     [userDetails, navigate]
   );
 
+  // Logout handler to fix state mismatch between logout and app store
+  const handleLogout = useCallback(
+    async (e?: React.MouseEvent) => {
+      if (e) e.preventDefault();
+      await logout(); 
+      setUserDetails(null); 
+      navigate("/login");
+    },
+    [logout, setUserDetails, navigate]
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
       {/* Header */}
@@ -32,9 +46,15 @@ export default function Landing() {
             <span className="text-2xl font-bold text-foreground">Bajet</span>
           </div>
           <div className="space-x-4">
-            <Button onClick={handleLoginOrDashboard}>
-              Let's start!
-            </Button>
+            {userDetails ? (
+              <Button variant="outline" onClick={handleLogout}>
+                Logout
+              </Button>
+            ) : (
+              <Button onClick={handleLoginOrDashboard}>
+                Let's start!
+              </Button>
+            )}
           </div>
         </nav>
       </header>
