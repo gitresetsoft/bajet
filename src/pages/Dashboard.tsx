@@ -3,16 +3,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Calculator, Plus, Eye, Edit, Trash2, LogOut, Calendar, Copy } from "lucide-react"; // Added Copy icon
+import { Calculator, Plus, Eye, Edit, Trash2, LogOut, Calendar, Copy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { listBudgetsByUser, deleteBudget as deleteBudgetApi, createBudget } from '@/lib/budgetsApi';
+import { useAppStore } from '@/hooks/use-appstore'; // <-- Import useAppStore
 
 interface CommitmentItem {
   id: string;
   name: string;
   amounts: Record<string, number>;
-  paidStatus: Record<string, boolean>; // Added paidStatus based on CreateViewEditBudget.tsx
+  paidStatus: Record<string, boolean>;
 }
 
 interface CommitmentGroup {
@@ -39,6 +40,7 @@ export default function Dashboard() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const clearUserDetails = useAppStore((state) => state.clearUserDetails); // <-- Get clearUserDetails
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -99,7 +101,7 @@ export default function Dashboard() {
       const latestDate = new Date(latest.year, months.indexOf(latest.month));
       const currentDate = new Date(current.year, months.indexOf(current.month));
       return currentDate > latestDate ? current : latest;
-    }, originalBudget); // Start comparison with the original budget itself
+    }, originalBudget);
 
     const latestMonthIndex = months.indexOf(latestBudget.month);
     const latestYear = latestBudget.year;
@@ -118,15 +120,12 @@ export default function Dashboard() {
       id: `group_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, // New unique ID for group
       items: group.items.map(item => ({
         ...item,
-        id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`, // New unique ID for item
-        paidStatus: originalBudget.members.reduce((acc, member) => ({ ...acc, [member]: false }), {}), // All default to unpaid
+        id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        paidStatus: originalBudget.members.reduce((acc, member) => ({ ...acc, [member]: false }), {}),
       })),
     }));
 
     // 4. Create new budget object
-    // Persist via Supabase
-
-    // Calculate derived totals for the new budget
     const { totalCommitments, balance } = calculateBudgetTotals(
       originalBudget.members,
       newCommitments,
@@ -155,6 +154,7 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     await logout();
+    clearUserDetails(); // <-- Ensures logout clear userDetails in localStorage/sessionStorage
     toast({
       title: "Signed out",
       description: "You've been successfully signed out.",
@@ -290,7 +290,7 @@ export default function Dashboard() {
                                 <Button 
                                   variant="outline" 
                                   size="sm" 
-                                  onClick={() => handleCopyBudget(budget)} // New Copy button
+                                  onClick={() => handleCopyBudget(budget)}
                                   className="text-primary hover:text-primary"
                                 >
                                   <Copy className="h-4 w-4" />

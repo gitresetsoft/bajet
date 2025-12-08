@@ -17,6 +17,7 @@ interface AppStore {
   setAppState: (appState: AppState) => void;
   setUserDetails: (userDetails: UserDetails | null) => void;
   hydrateUserFromLocalStorage: () => void;
+  clearUserDetails: () => void; // ADD NEW EXPLICIT LOGOUT CLEAR
 }
 
 const USER_DETAILS_STORAGE_KEY = 'budget_user_details';
@@ -37,6 +38,7 @@ export const useAppStore = create<AppStore>((set) => ({
   })(),
 
   setAppState: (appState: AppState) => set({ appState }),
+
   setUserDetails: (userDetails: UserDetails | null) => {
     if (userDetails) {
       try {
@@ -50,11 +52,11 @@ export const useAppStore = create<AppStore>((set) => ({
           set({ userDetails });
         }
       }
+      set({ userDetails });
     } else {
-      localStorage.removeItem(USER_DETAILS_STORAGE_KEY);
-      sessionStorage.removeItem(USER_DETAILS_STORAGE_KEY);
+      // Only set userDetails to null, but do NOT clear localStorage/sessionStorage here. Use clearUserDetails for logout.
+      set({ userDetails: null });
     }
-    set({ userDetails });
   },
   hydrateUserFromLocalStorage: () => {
     try {
@@ -67,5 +69,11 @@ export const useAppStore = create<AppStore>((set) => ({
     } catch {
       set({ userDetails: null });
     }
+  },
+  clearUserDetails: () => {
+    // Explicitly clear both storages and set to null
+    localStorage.removeItem(USER_DETAILS_STORAGE_KEY);
+    sessionStorage.removeItem(USER_DETAILS_STORAGE_KEY);
+    set({ userDetails: null });
   },
 }));
