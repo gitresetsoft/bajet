@@ -267,7 +267,10 @@ export default function Dashboard() {
                             return (
                               <Card
                                 key={budget.id}
-                                className="border-border hover:shadow-md md:hover:shadow-lg transition-shadow"
+                                className="md:p-4 border-border hover:shadow-md md:hover:shadow-lg transition-shadow"
+                                style={{
+                                  background: "linear-gradient(90deg, #e0f2fe 0%, #fff 100%)"
+                                }}
                               >
                                 {/* Card 'header' row for mobile only: title + actions on same line */}
                                 <div className="flex md:hidden flex-row items-center justify-between p-3 pb-1">
@@ -325,34 +328,30 @@ export default function Dashboard() {
                                     </div>
                                   </CardHeader>
                                 </div>
-                                {/* Under title: budget period row (always visible), then (mobile) stats row */}
+                                {/* Mobile stats row with period once at the end, right-aligned */}
                                 <div className="flex flex-col md:hidden px-3 pb-2">
-                                  <span className="text-xs font-normal text-muted-foreground">{budget.month} {budget.year}</span>
-                                  {/* Stats horizontal row for mobile (left-aligned), insert "-" between salary and commit, "=" between commit and balance */}
-                                  <div className="flex flex-row gap-1 mt-2 items-start">
-                                    <div className="flex flex-col items-start">
+                                  <div className="flex flex-row gap-1 mt-2 items-start w-full">
+                                    <div className="flex flex-col items-start flex-1">
                                       <span className="flex items-center text-success text-xs">
                                         <svg width={16} height={16} viewBox="0 0 24 24" fill="none" className="inline mr-0.5"><circle cx="12" cy="12" r="9" stroke="#16a34a" strokeWidth="2" fill="none"/><path d="M8 12h8M10 9v6" stroke="#16a34a" strokeWidth="2" strokeLinecap="round"/></svg>
                                         RM {totalSalary.toLocaleString()}
                                       </span>
                                       <span className="text-[10px] text-muted-foreground mt-0.5">Total Salary</span>
                                     </div>
-                                    {/* Minus sign separator for mobile */}
                                     <div className="flex flex-col justify-center items-center pt-0">
                                       <span className="text-xs font-bold text-muted-foreground">-</span>
                                     </div>
-                                    <div className="flex flex-col items-start">
+                                    <div className="flex flex-col items-start flex-1">
                                       <span className="flex items-center text-destructive text-xs">
                                         <svg width={16} height={16} viewBox="0 0 24 24" fill="none" className="inline mr-0.5"><rect x="5" y="5" width="14" height="14" rx="5" stroke="#ef4444" strokeWidth="2" fill="none"/><path d="M9 9L15 15M15 9L9 15" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/></svg>
                                         RM {totalCommitments.toLocaleString()}
                                       </span>
                                       <span className="text-[10px] text-muted-foreground mt-0.5">Total Commitments</span>
                                     </div>
-                                    {/* Equal sign separator for mobile */}
                                     <div className="flex flex-col justify-center items-center pt-0">
                                       <span className="text-xs font-bold text-muted-foreground">=</span>
                                     </div>
-                                    <div className="flex flex-col items-start">
+                                    <div className="flex flex-col items-start flex-1">
                                       <span className={`flex items-center text-xs ${totalBalance >= 0 ? "text-success" : "text-destructive"}`}>
                                         <svg width={16} height={16} viewBox="0 0 24 24" fill="none" className="inline mr-0.5">
                                           <circle cx="12" cy="12" r="9" stroke={totalBalance >= 0 ? "#16a34a" : "#ef4444"} strokeWidth="2" fill="none"/>
@@ -361,6 +360,12 @@ export default function Dashboard() {
                                         RM {totalBalance.toLocaleString()}
                                       </span>
                                       <span className="text-[10px] text-muted-foreground mt-0.5">Balance</span>
+                                    </div>
+                                    {/* Period only at the end, right-aligned */}
+                                    <div className="flex flex-col justify-end items-end flex-shrink-0 flex-grow-0 ml-2 w-14">
+                                      <span className="text-[12px] font-bold text-muted-foreground whitespace-nowrap">
+                                        {budget.month?.substring(0, 3)} {String(budget.year).slice(-2)}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>

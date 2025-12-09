@@ -52,7 +52,7 @@ function getValidatedCommitmentGroups(commitments: CommitmentGroup[]): Commitmen
   return (commitments || []).filter(isValidCommitmentGroup);
 }
 
-export default function CreateViewEditBudget() {
+export default function BKCreateViewEditBudget() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();

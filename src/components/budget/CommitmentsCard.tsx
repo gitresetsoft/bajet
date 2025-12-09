@@ -43,15 +43,14 @@ interface CommitmentsCardProps {
 }
 
 /** Ensures paidStatus is always defined for each member for each item (safe for undefined/legacy data) */
-function ensurePaidStatusInitialized(
-  item: CommitmentItem,
-  members: string[]
-) {
-  const obj: Record<string, boolean> = {};
-  members.forEach((m) => {
-    obj[m] = !!(item.paidStatus && item.paidStatus[m]);
-  });
-  return obj;
+function getPaidStatus(item: CommitmentItem, member: string): boolean {
+  console.log("getPaidStatus called with:", { item, member });
+  if (item.paidStatus && Object.prototype.hasOwnProperty.call(item.paidStatus, member)) {
+    console.log("paidStatus value for member", member, ":", item.paidStatus[member]);
+    return !!item.paidStatus[member];
+  }
+  console.log("paidStatus not found for member", member, ", returning false.");
+  return false;
 }
 
 const CommitmentsCard: React.FC<CommitmentsCardProps> = ({
@@ -70,32 +69,32 @@ const CommitmentsCard: React.FC<CommitmentsCardProps> = ({
 }) => {
   return (
     <Card className="border-border">
-      <CardHeader>
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Commitments</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-base font-semibold mb-0">Commitments</CardTitle>
+            <CardDescription className="text-xs">
               Add your monthly commitments and expenses for each member.
             </CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
+      <CardContent className="pt-0">
+        <div className="space-y-3">
           {commitments.map((group, groupIdx) => (
             <div
               key={group.name + "-" + groupIdx}
-              className="border border-border rounded-lg p-4"
+              className="border border-border rounded-lg p-2 md:p-3"
             >
               {/* Group Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center space-x-1">
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="h-5 w-5 min-h-0 min-w-0 p-0"
                     onClick={() => onToggleExpansion(groupIdx)}
-                    disabled={disabled}
                   >
                     {(group.isExpanded ?? true) ? (
                       <ChevronDown className="h-4 w-4" />
@@ -106,35 +105,34 @@ const CommitmentsCard: React.FC<CommitmentsCardProps> = ({
                   <Input
                     value={group.name}
                     onChange={e => onUpdateGroup(groupIdx, e.target.value)}
-                    placeholder="Commitment Group Name"
-                    className="w-[200px]"
+                    placeholder="Commitment Group"
+                    className="w-[120px] md:w-[160px] h-7 text-xs px-2 py-1"
                     disabled={disabled}
                   />
                 </div>
                 {!disabled && (
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => onRemoveGroup(groupIdx)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-5 w-5 min-h-0 min-w-0 px-0"
+                    onClick={() => onRemoveGroup(groupIdx)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 )}
               </div>
               {/* Group Items */}
               {(group.isExpanded ?? true) && (
-                <div className="space-y-4">
+                <div className="space-y-2">
                   {group.items.map((item, itemIdx) => (
                     <div
                       key={item.name + "-" + itemIdx}
-                      className="border border-muted rounded-md p-4 mb-2 bg-white"
+                      className="border border-muted rounded-md p-2 mb-1 bg-white"
                     >
-                      <div className="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-2 md:space-y-0">
+                      <div className="flex flex-col md:flex-row md:items-end md:space-x-2 space-y-1 md:space-y-0">
                         <div>
-                          <Label>Item Name:</Label>
+                          <Label className="block text-xs font-medium mb-0">Item Name:</Label>
                           <Input
                             placeholder="e.g., Car Loan"
                             value={item.name}
@@ -142,13 +140,12 @@ const CommitmentsCard: React.FC<CommitmentsCardProps> = ({
                               onUpdateItem(groupIdx, itemIdx, e.target.value)
                             }
                             disabled={disabled}
-                            className="flex-1"
+                            className="flex-1 h-7 text-xs px-2 py-1 mt-1"
                           />
                         </div>
-                        {/* You may extend to support a remark field by updating operations/types */}
                         {!disabled && (
                           <Button
-                            className="md:mt-6"
+                            className="md:mt-3 h-5 w-5 min-h-0 min-w-0 px-0"
                             type="button"
                             variant="outline"
                             size="icon"
@@ -159,55 +156,63 @@ const CommitmentsCard: React.FC<CommitmentsCardProps> = ({
                         )}
                       </div>
                       {/* Member Amounts Row */}
-                      <div className="grid grid-cols-2 md:grid-cols-2 gap-4 pl-4">
-                        {members.map(member => (
-                          <div key={member} className="flex items-center space-x-2">
-                            <Label className="max-w-24 text-sm font-medium">
-                              {member ? member.split("@")[0] : "Member"}:
-                            </Label>
-                            <Input
-                              type="number"
-                              placeholder="0.00"
-                              value={item.amounts[member] ?? ""}
-                              onChange={e =>
-                                onUpdateAmount(
-                                  groupIdx,
-                                  itemIdx,
-                                  member,
-                                  parseFloat(e.target.value) || 0
-                                )
-                              }
-                              disabled={disabled}
-                              className="flex-1 max-w-[120px]"
-                              step="0.01"
-                              min="0"
-                            />
-                            {/* Paid/Unpaid Toggle */}
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                id={`paid-${groupIdx}-${itemIdx}-${member}`}
-                                checked={!!ensurePaidStatusInitialized(item, members)[member]}
+                      <div
+                        className="
+                          grid grid-cols-1 gap-y-1 pl-2 mt-1
+                          md:grid-cols-2 md:gap-2 md:pl-4
+                        "
+                      >
+                        {members.map(member => {
+                          const paid = getPaidStatus(item, member);
+                          return (
+                            <div key={member} className="flex items-center space-x-1">
+                              <Label className="max-w-24 text-xs font-medium pr-1">
+                                {member ? member.split("@")[0] : "Member"}:
+                              </Label>
+                              <Input
+                                type="number"
+                                placeholder="0.00"
+                                value={item.amounts[member] ?? ""}
                                 onChange={e =>
-                                  onUpdatePaidStatus(
+                                  onUpdateAmount(
                                     groupIdx,
                                     itemIdx,
                                     member,
-                                    e.target.checked
+                                    parseFloat(e.target.value) || 0
                                   )
                                 }
                                 disabled={disabled}
-                                className="h-4 w-4"
+                                className="flex-1 max-w-[85px] h-7 text-xs px-2 py-1"
+                                step="0.01"
+                                min="0"
                               />
-                              <Label
-                                htmlFor={`paid-${groupIdx}-${itemIdx}-${member}`}
-                                className="text-xs"
-                              >
-                                Paid
-                              </Label>
+                              {/* Paid/Unpaid Toggle */}
+                              <div className="flex items-center space-x-1 ml-1">
+                                <input
+                                  type="checkbox"
+                                  id={`paid-${groupIdx}-${itemIdx}-${member}`}
+                                  checked={paid}
+                                  onChange={e =>
+                                    onUpdatePaidStatus(
+                                      groupIdx,
+                                      itemIdx,
+                                      member,
+                                      e.target.checked
+                                    )
+                                  }
+                                  disabled={disabled}
+                                  className="h-4 w-4"
+                                />
+                                <Label
+                                  htmlFor={`paid-${groupIdx}-${itemIdx}-${member}`}
+                                  className="text-[10px]"
+                                >
+                                  {paid ? "Paid" : "Unpaid"}
+                                </Label>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
@@ -216,7 +221,7 @@ const CommitmentsCard: React.FC<CommitmentsCardProps> = ({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="mt-2"
+                      className="mt-1 h-6 min-h-0 px-2 text-xs"
                       onClick={() => onAddItem(groupIdx)}
                     >
                       <Plus className="h-4 w-4 mr-1" />
@@ -232,10 +237,10 @@ const CommitmentsCard: React.FC<CommitmentsCardProps> = ({
               type="button"
               variant="outline"
               size="sm"
-              className="w-full"
+              className="w-full h-7 text-xs mt-1"
               onClick={onAddGroup}
             >
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4 mr-1" />
               Add Commitment Group
             </Button>
           )}
