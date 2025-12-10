@@ -37,41 +37,69 @@ export function BudgetHeader({
 
       {/* Main Content Container */}
       <main className="container mx-auto px-4 py-4">
-        <div className="bg-gradient-to-r from-blue-100 to-blue-50 rounded-md max-w-[180px]">
-          <Button variant="ghost" asChild>
-            <Link to="/dashboard">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Link>
-          </Button>
+        {/* Top bar: mobile (block/row) */}
+        <div className="flex flex-col md:block">
+          <div className="flex flex-row items-center space-x-2">
+            <div className="bg-gradient-to-r from-blue-100 to-blue-50 rounded-md max-w-[180px] text-sm md:text-base">
+              <Button variant="ghost" asChild className="text-xs">
+                <Link to="/dashboard" className="text-xs">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Dashboard
+                </Link>
+              </Button>
+            </div>
+            {/* Show toggle on mobile only (not md and up) */}
+            {mode === 'view' && viewMode && onViewModeToggle && (
+              <div className="md:hidden flex-1 flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onViewModeToggle}
+                  className="flex items-center space-x-2 ml-2 text-xs font-normal"
+                >
+                  {viewMode === 'structured' ? (
+                    <>
+                      <List className="h-4 w-4" />
+                      <span className="text-xs">Structured</span>
+                    </>
+                  ) : (
+                    <>
+                      <Table className="h-4 w-4" />
+                      <span className="text-xs">Ledger View</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Toggle Mode for View */}
+        {/* Desktop toggle + export (md+) */}
         {mode === 'view' && viewMode && onViewModeToggle && (
-          <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-start justify-between py-4">
-            <div className="flex items-center space-x-2 mb-2 md:mb-0">
-              <span className="hidden md:inline text-sm text-muted-foreground">View Mode:</span>
+          <div className="max-w-4xl mx-auto w-full hidden md:flex flex-row items-start justify-between py-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-muted-foreground">View Mode:</span>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={onViewModeToggle}
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 text-base font-normal"
               >
                 {viewMode === 'structured' ? (
                   <>
                     <List className="h-4 w-4" />
-                    <span className="hidden md:inline">Structured</span>
+                    <span className="hidden md:inline text-base">Structured</span>
                   </>
                 ) : (
                   <>
                     <Table className="h-4 w-4" />
-                    <span className="hidden md:inline">Ledger View</span>
+                    <span className="hidden md:inline text-base">Ledger View</span>
                   </>
                 )}
               </Button>
             </div>
-            
             {/* Export PDF for Ledger View */}
             {viewMode === 'ledger' && onExportLedgerPdf && (
               <Button
@@ -85,6 +113,22 @@ export function BudgetHeader({
                 Export Ledger PDF
               </Button>
             )}
+          </div>
+        )}
+
+        {/* For mobile, keep PDF export below the toggle and back button */}
+        {mode === 'view' && viewMode === 'ledger' && onExportLedgerPdf && (
+          <div className="block md:hidden mt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={onExportLedgerPdf}
+              className="flex items-center space-x-2"
+            >
+              <FileText className="h-4 w-4 mr-1" />
+              Export Ledger PDF
+            </Button>
           </div>
         )}
       </main>

@@ -335,7 +335,7 @@ export default function CreateViewEditBudget() {
           />
 
           {/* Action Buttons */}
-          <div className="flex space-x-4">
+          <div className="flex space-x-4 pb-10 px-10">
             {mode === 'view' ? (
               <>
                 <Button type="button" variant="outline" asChild className="flex-1">

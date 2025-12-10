@@ -269,7 +269,7 @@ export default function Dashboard() {
                                 key={budget.id}
                                 className="md:p-4 border-border hover:shadow-md md:hover:shadow-lg transition-shadow"
                                 style={{
-                                  background: "linear-gradient(90deg, #e0f2fe 0%, #fff 100%)"
+                                  background: "linear-gradient(90deg, rgba(51, 51, 51, 0.05) 0%, #fff 100%)"
                                 }}
                               >
                                 {/* Card 'header' row for mobile only: title + actions on same line */}
