@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowRight, Calculator, PieChart, Users, Shield, TrendingUp, CheckCircle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function Landing() {
   return (
@@ -13,7 +14,8 @@ export default function Landing() {
             <img src="/icon.png" alt="Budget Icon" className="h-8 w-8" />
             <span className="text-2xl font-bold text-foreground">Bajet</span>
           </div>
-          <div className="space-x-4">
+          <div className="flex items-center space-x-4">
+            <ThemeToggle />
             {/* <Button variant="ghost" asChild>
               <Link to="/login">Sign In</Link>
             </Button> */}
