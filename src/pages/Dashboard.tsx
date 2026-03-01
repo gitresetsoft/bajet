@@ -7,6 +7,7 @@ import { Calculator, Plus, Eye, Edit, Trash2, LogOut, Calendar, Copy } from "luc
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { listBudgetsByUser, deleteBudget as deleteBudgetApi, createBudget } from '@/lib/budgetsApi';
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface CommitmentItem {
   id: string;
@@ -175,6 +176,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <ThemeToggle />
               <Button variant="ghost" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
